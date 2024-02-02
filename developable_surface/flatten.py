@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from read_stl import TriangleMesh
 
 
+
 def trans_x(s1x, s2x, s1y, s2y, sin_val, cos_val, len_change):
     Re = (cos_val * s2x) - (cos_val * s1x) - \
         (sin_val * s2y) + (sin_val * s1y)  # 旋轉矩陣轉換
@@ -28,9 +29,11 @@ def calculate_third_point(s1, s2, length_12, length_13, length_23):
     s3y1 = trans_y(s1[0], s2[0], s1[1], s2[1], sin312_1, cos312, length_change)
     s3x2 = trans_x(s1[0], s2[0], s1[1], s2[1], sin312_2, cos312, length_change)
     s3y2 = trans_y(s1[0], s2[0], s1[1], s2[1], sin312_2, cos312, length_change)
+    return [s3x1, s3y1]
+    #print(f"s3 的x,y坐標為 ({s3x1:.3f},{s3y1:.3f}) 或 ({s3x2:.3f},{s3y2:.3f})")
 
-    print(f"s3 的x,y坐標為 ({s3x1:.3f},{s3y1:.3f}) 或 ({s3x2:.3f},{s3y2:.3f})")
 
+<<<<<<< Updated upstream
 
 def flatten(mesh, s1, s2, s3):
     s3 = mesh.connect[s1, s2]
@@ -69,3 +72,10 @@ plt.legend()
 
 # 顯示圖形
 plt.show()
+=======
+if __name__ == "__main__":
+    s1 = 0, 1  # 欲測試的s1座標
+    s2 = 1, 0  # 欲測試的s2座標
+    # 給定s1,s2座標及三邊邊長（依序為s1s2,s1s3,s2s3），計算s3座標
+    calculate_third_point(s1, s2, 1.414, 1, 1)
+>>>>>>> Stashed changes
