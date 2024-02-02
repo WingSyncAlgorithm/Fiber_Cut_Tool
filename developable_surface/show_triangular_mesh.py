@@ -56,10 +56,13 @@ class Mesh:
             ax.set_xlabel('X')
             ax.set_ylabel('Y')
             ax.set_zlabel('Z')
+
+            # Set the initial view
+            ax.view_init(elev=20, azim=30)  # Adjust these values as needed
             plt.show()
 
 
 if __name__ == "__main__":
-    mesh = Mesh('arc.stl')
+    mesh = Mesh('custom.stl')
     mesh.read_stl()
     mesh.plot_mesh()
