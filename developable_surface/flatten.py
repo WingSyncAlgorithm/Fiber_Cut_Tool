@@ -46,10 +46,14 @@ def flatten(mesh, s1, s2, s3):
         flatten(mesh, s3, s2, s5)
 
 
-mesh = TriangleMesh('cylinder.stl')
-mesh.s[0, :] = [-1, 1]
-mesh.s[2, :] = [1, 1]
-flatten(mesh, 0, 2, mesh.connect[0, 2])
+mesh = TriangleMesh('arc.stl')
+print(mesh.length)
+start_point1 = 0
+start_point2 = 2
+mesh.s[start_point1, :] = [0, 0]
+mesh.s[start_point2, :] = [0, mesh.length[start_point1, start_point2]]
+flatten(mesh, start_point1, start_point2,
+        mesh.connect[start_point1, start_point2])
 print(mesh.s)
 
 
