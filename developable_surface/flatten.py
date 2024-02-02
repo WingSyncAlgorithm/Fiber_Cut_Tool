@@ -47,15 +47,14 @@ def flatten(mesh, s1, s2, s3):
 
 
 mesh = TriangleMesh('arc.stl')
-print(mesh.length)
 start_point1 = 0
-start_point2 = 2
+start_point2 = 3
 mesh.s[start_point1, :] = [0, 0]
 mesh.s[start_point2, :] = [0, mesh.length[start_point1, start_point2]]
 flatten(mesh, start_point1, start_point2,
         mesh.connect[start_point1, start_point2])
-print(mesh.s)
-
+# print(mesh.s)
+print(mesh.length[start_point1, start_point2])
 
 # 提取 x 和 y 值
 x_value = mesh.s[:, 0]
