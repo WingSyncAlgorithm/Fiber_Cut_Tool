@@ -58,7 +58,7 @@ class TriangleMesh:
         # 尋找高斯曲率過大的點
         for vertex_idx in range(self.num_vertices):
             if self.gaussian_curvature[vertex_idx] > 0.005:
-                print("h")
+                # print("h")
                 self.high_curvature_points = np.append(
                     self.high_curvature_points, vertex_idx)
         #print("first", self.high_curvature_points)
@@ -79,8 +79,9 @@ class TriangleMesh:
                     self.high_curvature_graph[point2_idx,
                                               point1_idx] = self.high_curvature_graph[point1_idx, point2_idx]
 
-        high_curvature_subgraph = self.separate_disconnected_components(
-            self.high_curvature_graph)
+        # high_curvature_subgraph = self.separate_disconnected_components(
+        #    self.high_curvature_graph)
+        '''
         x_data, y_data, z_data = [], [], []
         for i in range(np.size(self.high_curvature_graph, axis=0)):
             for j in range(np.size(self.high_curvature_graph, axis=1)):
@@ -107,6 +108,9 @@ class TriangleMesh:
         ax.set_xlabel('X 軸')
         ax.set_ylabel('Y 軸')
         ax.set_zlabel('Z 軸')
+        '''
+        # 執行切割
+        '''
         for subgraph in range(np.size(high_curvature_subgraph, axis=0)):
             print(subgraph)
             max_cycle_cost, max_cycle_path = self.find_max_cycle_cost(
@@ -115,7 +119,7 @@ class TriangleMesh:
                 self.cut_edge(max_cycle_path[point % np.size(
                     max_cycle_path)], max_cycle_path[(point+1) % np.size(max_cycle_path)])
             print(high_curvature_subgraph[subgraph][:][:])
-        # 執行切割
+        '''
         # 初始化儲存展開到平面的點的矩陣
         self.s = np.full((self.num_vertices, 2), 99999999, dtype=float)
         # 儲存由兩點所連接的第三點
