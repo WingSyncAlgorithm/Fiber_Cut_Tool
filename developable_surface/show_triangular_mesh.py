@@ -56,6 +56,9 @@ class Mesh:
             ax.set_xlabel('X')
             ax.set_ylabel('Y')
             ax.set_zlabel('Z')
+
+            # Set the initial view and display the plot
+            ax.view_init(elev=20, azim=30)  # Adjust these values as needed
             plt.show()
 
 
