@@ -102,8 +102,8 @@ class TriangleMesh:
             for point in range(np.size(max_cycle_path)):
                 print(max_cycle_path[point % np.size(
                     max_cycle_path)], max_cycle_path[(point+1) % np.size(max_cycle_path)])
-                self.cut_edge(max_cycle_path[point % np.size(
-                    max_cycle_path)], max_cycle_path[(point+1) % np.size(max_cycle_path)], point == 0)
+                # self.cut_edge(max_cycle_path[point % np.size(
+                #    max_cycle_path)], max_cycle_path[(point+1) % np.size(max_cycle_path)], point == 0)
             print(high_curvature_subgraph[subgraph][:][:])
         self.length = np.full(
             (self.num_vertices, self.num_vertices), -1, dtype=float)
@@ -307,7 +307,7 @@ class TriangleMesh:
 
 
 if __name__ == "__main__":
-    mesh = TriangleMesh('custom.stl')
+    mesh = TriangleMesh('cylinder.stl')
     # print(mesh.vertices)
     # print(mesh.triangles)
     # print(mesh.s)
