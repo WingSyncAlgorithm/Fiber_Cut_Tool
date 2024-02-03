@@ -238,7 +238,7 @@ class TriangleMesh:
     def find_max_cycle_cost_helper(self, graph, start_node, current_node, visited, current_cost, max_cost, path, max_path):
         visited[current_node] = True
         path.append(current_node)
-        print("find_max_cycle_cost_helper")
+      #  print("find_max_cycle_cost_helper")
 
         for neighbor in range(len(graph)):
             if graph[current_node, neighbor] > 0:  # Check if there is an edge
