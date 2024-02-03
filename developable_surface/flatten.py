@@ -29,7 +29,6 @@ def calculate_third_point(s1, s2, length_12, length_13, length_23):
     s3x2 = trans_x(s1[0], s2[0], s1[1], s2[1], sin312_2, cos312, length_change)
     s3y2 = trans_y(s1[0], s2[0], s1[1], s2[1], sin312_2, cos312, length_change)
     return [s3x1, s3y1]
-    #print(f"s3 的x,y坐標為 ({s3x1:.3f},{s3y1:.3f}) 或 ({s3x2:.3f},{s3y2:.3f})")
 
 
 def flatten(mesh, s1, s2, s3):
@@ -39,30 +38,34 @@ def flatten(mesh, s1, s2, s3):
     s4 = mesh.connect[s1, s3]
     s5 = mesh.connect[s3, s2]
     if s4 != -1 and mesh.s[s4, 0] == 99999999:
-        print('1', s1, s3, s4)
         flatten(mesh, s1, s3, s4)
     if s5 != -1 and mesh.s[s5, 0] == 99999999:
-        print('2', s3, s2, s5)
         flatten(mesh, s3, s2, s5)
 
 
-mesh = TriangleMesh('arc.stl')
-start_point1 = 0
-start_point2 = 3
-mesh.s[start_point1, :] = [0, 0]
-mesh.s[start_point2, :] = [0, mesh.length[start_point1, start_point2]]
-flatten(mesh, start_point1, start_point2,
-        mesh.connect[start_point1, start_point2])
-# print(mesh.s)
-print(mesh.length[start_point1, start_point2])
+mesh = TriangleMesh('custom.stl')
+print(mesh.vertices)
+for i, start_edge in enumerate(mesh.start_edges):
+    start_point1 = start_edge[0]
+    start_point2 = start_edge[1]
+    mesh.s[start_point1, :] = [i*10, 0]
+    mesh.s[start_point2, :] = [i*10+mesh.length[start_point1, start_point2], 0]
+
+    next_point1 = mesh.connect[start_point1, start_point2]
+    next_point2 = mesh.connect[start_point2, start_point1]
+    if next_point1 != -1:
+        flatten(mesh, start_point1, start_point2, next_point1)
+    if next_point2 != -1:
+        flatten(mesh, start_point2, start_point1, next_point2)
+
 
 # 提取 x 和 y 值
 x_value = mesh.s[:, 0]
 y_value = mesh.s[:, 1]
 
 # 繪製單一點的散點圖
-plt.scatter(x_value, y_value, color='red', marker='o', label='Point [1, 2]')
-
+plt.scatter(x_value, y_value, color='red', marker='o')
+plt.axis('equal')
 # 添加標籤和標題
 plt.xlabel('X-axis')
 plt.ylabel('Y-axis')
@@ -73,3 +76,4 @@ plt.legend()
 
 # 顯示圖形
 plt.show()
+print(mesh.triangles)

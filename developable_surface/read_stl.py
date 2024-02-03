@@ -15,8 +15,6 @@ class TriangleMesh:
         self.num_original_vertices = np.size(self.vertices, axis=0)
         self.num_vertices = np.size(self.vertices, axis=0)
         self.triangles = np.zeros((np.size(stl.vectors, axis=0), 3), dtype=int)
-        self.length = np.full(
-            (self.num_vertices, self.num_vertices), -1, dtype=float)
         self.high_curvature_points = np.full(0, -1, dtype=int)
 
         # 轉換三角形儲存格式
@@ -25,26 +23,10 @@ class TriangleMesh:
                 for i in range(np.size(self.vertices, axis=0)):
                     if (stl.vectors[triangle_idx, vertex, :] == self.vertices[i]).all():
                         self.triangles[triangle_idx, vertex] = i
-        # 計算self.length
-        for triangle_idx in range(np.size(self.triangles, axis=0)):
-            point1_idx = self.triangles[triangle_idx, 0]
-            point2_idx = self.triangles[triangle_idx, 1]
-            point3_idx = self.triangles[triangle_idx, 2]
-            point1 = self.vertices[point1_idx, :]
-            point2 = self.vertices[point2_idx, :]
-            point3 = self.vertices[point3_idx, :]
-            self.length[point1_idx, point2_idx] = np.sqrt(
-                np.sum((point2 - point1)**2))
-            self.length[point2_idx, point1_idx] = np.sqrt(
-                np.sum((point2 - point1)**2))
-            self.length[point1_idx, point3_idx] = np.sqrt(
-                np.sum((point3 - point1)**2))
-            self.length[point3_idx, point1_idx] = np.sqrt(
-                np.sum((point3 - point1)**2))
-            self.length[point2_idx, point3_idx] = np.sqrt(
-                np.sum((point3 - point2)**2))
-            self.length[point3_idx, point2_idx] = np.sqrt(
-                np.sum((point3 - point2)**2))
+        # 初始化self.length
+        self.length = np.full(
+            (self.num_vertices, self.num_vertices), -1, dtype=float)
+        self.calculate_length()
         # 計算三角形面積
         self.area = np.zeros(np.size(self.triangles), dtype=float)
         self.calculate_area()
@@ -61,7 +43,7 @@ class TriangleMesh:
                 # print("h")
                 self.high_curvature_points = np.append(
                     self.high_curvature_points, vertex_idx)
-        #print("first", self.high_curvature_points)
+        print("first", self.high_curvature_points)
         for point in self.high_curvature_points:
             for add_point_idx in range(np.size(self.length, axis=1)):
                 if self.length[point, add_point_idx] != -1:
@@ -79,8 +61,9 @@ class TriangleMesh:
                     self.high_curvature_graph[point2_idx,
                                               point1_idx] = self.high_curvature_graph[point1_idx, point2_idx]
 
-        # high_curvature_subgraph = self.separate_disconnected_components(
-        #    self.high_curvature_graph)
+        high_curvature_subgraph = self.separate_disconnected_components(
+            self.high_curvature_graph)
+
         '''
         x_data, y_data, z_data = [], [], []
         for i in range(np.size(self.high_curvature_graph, axis=0)):
@@ -110,16 +93,21 @@ class TriangleMesh:
         ax.set_zlabel('Z 軸')
         '''
         # 執行切割
-        '''
+        self.start_edges = []
         for subgraph in range(np.size(high_curvature_subgraph, axis=0)):
             print(subgraph)
             max_cycle_cost, max_cycle_path = self.find_max_cycle_cost(
                 high_curvature_subgraph[subgraph][:][:])
-            for point in max_cycle_path:
-                self.cut_edge(max_cycle_path[point % np.size(
+            print(self.vertices, max_cycle_path)
+            for point in range(np.size(max_cycle_path)):
+                print(max_cycle_path[point % np.size(
                     max_cycle_path)], max_cycle_path[(point+1) % np.size(max_cycle_path)])
+                self.cut_edge(max_cycle_path[point % np.size(
+                    max_cycle_path)], max_cycle_path[(point+1) % np.size(max_cycle_path)], point == 0)
             print(high_curvature_subgraph[subgraph][:][:])
-        '''
+        self.length = np.full(
+            (self.num_vertices, self.num_vertices), -1, dtype=float)
+        self.calculate_length()
         # 初始化儲存展開到平面的點的矩陣
         self.s = np.full((self.num_vertices, 2), 99999999, dtype=float)
         # 儲存由兩點所連接的第三點
@@ -133,7 +121,28 @@ class TriangleMesh:
             self.connect[self.triangles[triangle_idx, 2],
                          self.triangles[triangle_idx, 0]] = self.triangles[triangle_idx, 1]
 
-    def cut_edge(self, vertex_idx1, vertex_idx2):
+    def calculate_length(self):
+        for triangle_idx in range(np.size(self.triangles, axis=0)):
+            point1_idx = self.triangles[triangle_idx, 0]
+            point2_idx = self.triangles[triangle_idx, 1]
+            point3_idx = self.triangles[triangle_idx, 2]
+            point1 = self.vertices[point1_idx, :]
+            point2 = self.vertices[point2_idx, :]
+            point3 = self.vertices[point3_idx, :]
+            self.length[point1_idx, point2_idx] = np.sqrt(
+                np.sum((point2 - point1)**2))
+            self.length[point2_idx, point1_idx] = np.sqrt(
+                np.sum((point2 - point1)**2))
+            self.length[point1_idx, point3_idx] = np.sqrt(
+                np.sum((point3 - point1)**2))
+            self.length[point3_idx, point1_idx] = np.sqrt(
+                np.sum((point3 - point1)**2))
+            self.length[point2_idx, point3_idx] = np.sqrt(
+                np.sum((point3 - point2)**2))
+            self.length[point3_idx, point2_idx] = np.sqrt(
+                np.sum((point3 - point2)**2))
+
+    def cut_edge(self, vertex_idx1, vertex_idx2, start_flatten):
         '''
         vertex_idx1往vertex_idx2切割
         '''
@@ -148,7 +157,7 @@ class TriangleMesh:
 
             if (self.vertices[vertex_idx2, :] == self.vertices[added_idx, :]).all():
                 vertex_add_idx2 = added_idx
-                is_added2 = False
+                is_added2 = True
 
         if is_added1 == False:
             vertex_add_idx1 = self.num_vertices
@@ -165,14 +174,27 @@ class TriangleMesh:
                 if self.triangles[triangle_idx, 1] == vertex_idx2:
                     self.triangles[triangle_idx, 0] = vertex_add_idx1
                     self.triangles[triangle_idx, 1] = vertex_add_idx2
+                    if start_flatten == True:
+                        self.start_edges.append(
+                            [vertex_add_idx1, vertex_add_idx2])
+                        self.start_edges.append([vertex_idx2, vertex_idx1])
             elif self.triangles[triangle_idx, 1] == vertex_idx1:
                 if self.triangles[triangle_idx, 2] == vertex_idx2:
                     self.triangles[triangle_idx, 1] = vertex_add_idx1
                     self.triangles[triangle_idx, 2] = vertex_add_idx2
+                    if start_flatten == True:
+                        self.start_edges.append(
+                            [vertex_add_idx1, vertex_add_idx2])
+                        self.start_edges.append([vertex_idx2, vertex_idx1])
             elif self.triangles[triangle_idx, 2] == vertex_idx1:
                 if self.triangles[triangle_idx, 0] == vertex_idx2:
                     self.triangles[triangle_idx, 2] = vertex_add_idx1
                     self.triangles[triangle_idx, 0] = vertex_add_idx2
+                    if start_flatten == True:
+                        self.start_edges.append(
+                            [vertex_add_idx1, vertex_add_idx2])
+                        self.start_edges.append([vertex_idx2, vertex_idx1])
+        self.num_vertices = np.size(self.vertices, axis=0)
 
     def calculate_area(self):
         for triangle_idx in range(np.size(self.triangles, axis=0)):
@@ -285,7 +307,7 @@ class TriangleMesh:
 
 
 if __name__ == "__main__":
-    mesh = TriangleMesh('cylinder.stl')
+    mesh = TriangleMesh('custom.stl')
     # print(mesh.vertices)
     # print(mesh.triangles)
     # print(mesh.s)
@@ -293,19 +315,19 @@ if __name__ == "__main__":
  #   print(mesh.area)
   #  print(mesh.angle)
    # print(mesh.gaussian_curvature)
-    #print(mesh.num_original_vertices, mesh.num_vertices)
-    #print("cut", mesh.cut)
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
+    # print(mesh.num_original_vertices, mesh.num_vertices)
+    # print("cut", mesh.cut)
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection='3d')
 
     # 繪製三維圖形
-    ax.scatter(mesh.vertices[1850:, 0], mesh.vertices[1850:,
-                                                      1], mesh.vertices[1850:, 2], c='blue', marker='o', s=1)
+    # ax.scatter(mesh.vertices[1850:, 0], mesh.vertices[1850:,
+    #                                                  1], mesh.vertices[1850:, 2], c='blue', marker='o', s=1)
 
     # 設定座標軸標籤
-    ax.set_xlabel('X 軸')
-    ax.set_ylabel('Y 軸')
-    ax.set_zlabel('Z 軸')
+    # ax.set_xlabel('X 軸')
+    # ax.set_ylabel('Y 軸')
+    # ax.set_zlabel('Z 軸')
 
     # 顯示圖形
-    plt.show()
+    # plt.show()
