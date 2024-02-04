@@ -51,7 +51,7 @@ class Mesh:
                 for i in range(3):
                     ax.plot([triangle[i][0], triangle[(i + 1) % 3][0]],
                             [triangle[i][1], triangle[(i + 1) % 3][1]],
-                            [triangle[i][2], triangle[(i + 1) % 3][2]], c='r', linewidth=0.01)
+                            [triangle[i][2], triangle[(i + 1) % 3][2]], c='r', linewidth=0.1)
             ax.scatter(self.vertices[:, 0], self.vertices[:, 1],
                        self.vertices[:, 2], c='r', marker='o', s=0.001)  # 調整s參數
             ax.set_xlabel('X')
@@ -59,11 +59,11 @@ class Mesh:
             ax.set_zlabel('Z')
 
             # Set the initial view
-            ax.view_init(elev=80, azim=0)  # Adjust these values as needed
+            ax.view_init(elev=100, azim=30)  # Adjust these values as needed
             plt.show()
 
 
 if __name__ == "__main__":
-    mesh = Mesh('cylinder.stl')
+    mesh = Mesh('arc.stl')
     mesh.read_stl()
     mesh.plot_mesh()
