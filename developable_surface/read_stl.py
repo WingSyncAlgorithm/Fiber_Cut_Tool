@@ -63,6 +63,7 @@ class TriangleMesh:
 
         high_curvature_subgraph = self.separate_disconnected_components(
             self.high_curvature_graph)
+        print(np.size(high_curvature_subgraph, axis=0))
 
         '''
         x_data, y_data, z_data = [], [], []
