@@ -59,7 +59,7 @@ class Mesh:
             ax.set_zlabel('Z')
 
             # Set the initial view
-            ax.view_init(elev=90, azim=0)  # Adjust these values as needed
+            ax.view_init(elev=80, azim=0)  # Adjust these values as needed
             plt.show()
 
 
