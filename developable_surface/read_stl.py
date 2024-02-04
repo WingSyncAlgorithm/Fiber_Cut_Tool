@@ -39,17 +39,19 @@ class TriangleMesh:
         self.calculate_gaussian_curvature()
         # 尋找高斯曲率過大的點
         for vertex_idx in range(self.num_vertices):
-            if self.gaussian_curvature[vertex_idx] > 0.005:
+            if self.gaussian_curvature[vertex_idx] > 0:
                 # print("h")
                 self.high_curvature_points = np.append(
                     self.high_curvature_points, vertex_idx)
         print("first", self.high_curvature_points)
+        '''
         for point in self.high_curvature_points:
             for add_point_idx in range(np.size(self.length, axis=1)):
                 if self.length[point, add_point_idx] != -1:
                     self.high_curvature_points = np.append(
                         self.high_curvature_points, add_point_idx)
         # print("second")
+        '''
         self.high_curvature_points = np.unique(self.high_curvature_points)
         self.high_curvature_graph = np.full(
             [np.size(self.vertices, axis=0), np.size(self.vertices, axis=0)], -1, dtype=float)
@@ -310,7 +312,7 @@ class TriangleMesh:
 
 
 if __name__ == "__main__":
-    mesh = TriangleMesh('cylinder.stl')
+    mesh = TriangleMesh('arc.stl')
     # print(mesh.vertices)
     # print(mesh.triangles)
     # print(mesh.s)
