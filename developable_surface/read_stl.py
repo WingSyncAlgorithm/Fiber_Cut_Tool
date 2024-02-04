@@ -65,7 +65,6 @@ class TriangleMesh:
             self.high_curvature_graph)
         print(np.size(high_curvature_subgraph, axis=0))
 
-        '''
         x_data, y_data, z_data = [], [], []
         for i in range(np.size(self.high_curvature_graph, axis=0)):
             for j in range(np.size(self.high_curvature_graph, axis=1)):
@@ -92,9 +91,9 @@ class TriangleMesh:
         ax.set_xlabel('X 軸')
         ax.set_ylabel('Y 軸')
         ax.set_zlabel('Z 軸')
-        '''
+
         # 執行切割
-        print(high_curvature_subgraph)
+        # print(high_curvature_subgraph)
         self.start_edges = []
         for subgraph in range(np.size(high_curvature_subgraph, axis=0)):
             print(subgraph)
