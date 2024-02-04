@@ -51,8 +51,9 @@ class Mesh:
                 for i in range(3):
                     ax.plot([triangle[i][0], triangle[(i + 1) % 3][0]],
                             [triangle[i][1], triangle[(i + 1) % 3][1]],
-                            [triangle[i][2], triangle[(i + 1) % 3][2]], c='r')
-
+                            [triangle[i][2], triangle[(i + 1) % 3][2]], c='r', linewidth=0.01)
+            ax.scatter(self.vertices[:, 0], self.vertices[:, 1],
+                       self.vertices[:, 2], c='r', marker='o', s=0.001)  # 調整s參數
             ax.set_xlabel('X')
             ax.set_ylabel('Y')
             ax.set_zlabel('Z')
