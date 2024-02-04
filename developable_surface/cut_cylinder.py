@@ -1,87 +1,41 @@
 import numpy as np
 from stl import mesh
-
-# 讀取STL檔案
-
-
-def read_stl(file_path):
-    mesh_data = mesh.Mesh.from_file(file_path)
-    return mesh_data
-
-# 估計圓柱的半徑和高度
+import tripy
 
 
-def estimate_cylinder_params(stl_mesh):
-    # 假設STL檔案的底部點是圓柱的中心
-    bottom_center = np.mean(stl_mesh.points, axis=0)
+def cut_stl_along_edge(stl_file_path, edge_vertices):
+    # 讀取STL檔案
+    mesh_data = mesh.Mesh.from_file(stl_file_path)
 
-    # 假設STL檔案的最高點是圓柱的頂部
-    top_center = np.max(stl_mesh.points, axis=0)
+    # 定義切割邊緣的兩個端點
+    point_a = np.array(edge_vertices[0])
+    point_b = np.array(edge_vertices[1])
 
-    # 估計半徑
-    radius = np.linalg.norm(bottom_center[:2] - top_center[:2]) / 2.0
+    # 找到切割平面上的所有點
+    cut_points = []
+    for triangle in mesh_data:
+        for vertex in triangle:
+            vertex = np.array(vertex)
+            if np.all((vertex - point_a) * (point_b - point_a) >= 0):
+                cut_points.append(vertex)
 
-    # 估計高度
-    height = top_center[2] - bottom_center[2]
+    # 使用triangulate函數將切割平面上的點三角化
+    triangles = tripy.earclip(cut_points)
 
-    return radius, height
+    # 創建新的STL模型
+    new_mesh = mesh.Mesh(np.zeros(len(triangles), dtype=mesh.Mesh.dtype))
+    for i, triangle in enumerate(triangles):
+        for j in range(3):
+            new_mesh.vectors[i][j] = triangle[j]
 
-# 切割圓柱
-
-
-# 切割圓柱
-def cut_cylinder(stl_mesh, radius, height):
-    # 定義切割平面
-    z_plane = height
-
-    # 過濾點，只保留在切割平面上方的點
-    points_above_plane = stl_mesh.points[stl_mesh.points[:, 2] > z_plane]
-
-    # 計算上方點的索引
-    indices_above_plane = np.where(stl_mesh.points[:, 2] > z_plane)[0]
-
-    # 切割三角形
-    new_triangles = []
-    for triangle in stl_mesh.vectors:
-        # 檢查三角形的所有頂點是否在切割平面的同一側
-        if all(index in indices_above_plane for vertex in triangle for index in vertex):
-            new_triangles.append(triangle)
-
-    # 確保有符合條件的三角形才進行合併
-    if new_triangles:
-        # 創建新的STL物件
-        new_mesh = mesh.Mesh(np.concatenate(new_triangles, axis=0))
-        return new_mesh
-    else:
-        print("No triangles above the cutting plane.")
-        return None
+    # 保存新的STL檔案
+    new_mesh.save('cut_result.stl')
 
 
-# 保存STL檔案
+# 指定STL檔案路徑和切割邊緣的端點座標
+stl_file_path = 'cylinder.stl'
+edge_vertices = [(10.16, 0, 0),
+                 (-10.16, 0, 0)]
 
-
-# 保存STL檔案
-def save_stl(file_path, stl_mesh):
-    if stl_mesh is not None:
-        stl_mesh.save(file_path)
-        print(f"STL檔案已成功保存到 {file_path}")
-    else:
-        print("無法保存STL檔案，因為沒有符合條件的三角形。")
-
-
-# 使用範例
-input_file = "cylinder.stl"
-output_file = "output_cut.stl"
-
-# 讀取STL檔案
-cylinder_mesh = read_stl(input_file)
-
-# 估計圓柱的半徑和高度
-estimated_radius, estimated_height = estimate_cylinder_params(cylinder_mesh)
-
-# 切割圓柱
-cut_mesh = cut_cylinder(
-    cylinder_mesh, radius=estimated_radius, height=estimated_height)
-
-# 保存切割後的STL檔案
-save_stl(output_file, cut_mesh)
+# 執行切割
+cut_stl_along_edge(stl_file_path, edge_vertices)
