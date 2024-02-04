@@ -43,7 +43,7 @@ class TriangleMesh:
                 # print("h")
                 self.high_curvature_points = np.append(
                     self.high_curvature_points, vertex_idx)
-        print("first", self.high_curvature_points)
+        # print("first", self.high_curvature_points)
         '''
         for point in self.high_curvature_points:
             for add_point_idx in range(np.size(self.length, axis=1)):
@@ -66,12 +66,12 @@ class TriangleMesh:
         high_curvature_subgraph = self.separate_disconnected_components(
             self.high_curvature_graph)
         print(np.size(high_curvature_subgraph, axis=0))
-
+        '''
         x_data, y_data, z_data = [], [], []
         for i in range(np.size(self.high_curvature_graph, axis=0)):
             for j in range(np.size(self.high_curvature_graph, axis=1)):
                 if self.high_curvature_graph[i][j] != -1:
-                    print(self.high_curvature_graph[i][j])
+                    # print(self.high_curvature_graph[i][j])
                     x_data.append(
                         self.vertices[i, 0])
                     y_data.append(
@@ -93,21 +93,21 @@ class TriangleMesh:
         ax.set_xlabel('X 軸')
         ax.set_ylabel('Y 軸')
         ax.set_zlabel('Z 軸')
-
+        '''
         # 執行切割
         # print(high_curvature_subgraph)
         self.start_edges = []
         for subgraph in range(np.size(high_curvature_subgraph, axis=0)):
-            print(subgraph)
+            # print(subgraph)
             max_cycle_cost, max_cycle_path = self.find_max_cycle_cost(
                 high_curvature_subgraph[subgraph][:][:])
-            print(self.vertices, max_cycle_path)
+            # print(self.vertices, max_cycle_path)
             for point in range(np.size(max_cycle_path)):
-                print(max_cycle_path[point % np.size(
-                    max_cycle_path)], max_cycle_path[(point+1) % np.size(max_cycle_path)])
+                # print(max_cycle_path[point % np.size(
+                #    max_cycle_path)], max_cycle_path[(point+1) % np.size(max_cycle_path)])
                 self.cut_edge(max_cycle_path[point % np.size(
                     max_cycle_path)], max_cycle_path[(point+1) % np.size(max_cycle_path)], point == 0)
-            print(high_curvature_subgraph[subgraph][:][:])
+            # print(high_curvature_subgraph[subgraph][:][:])
         self.length = np.full(
             (self.num_vertices, self.num_vertices), -1, dtype=float)
         self.calculate_length()
@@ -266,7 +266,7 @@ class TriangleMesh:
             visited = np.zeros(num_nodes, dtype=bool)
             cycle_cost, cycle_path = self.find_max_cycle_cost_helper(
                 graph, start_node, start_node, visited, 0, max_cost, [], [])
-            print("find_max_cycle_cost", cycle_cost, cycle_path)
+            # print("find_max_cycle_cost", cycle_cost, cycle_path)
             if cycle_cost > max_cost:
                 max_cost = cycle_cost
                 max_path = cycle_path
@@ -312,7 +312,7 @@ class TriangleMesh:
 
 
 if __name__ == "__main__":
-    mesh = TriangleMesh('arc.stl')
+    mesh = TriangleMesh('strange.stl')
     # print(mesh.vertices)
     # print(mesh.triangles)
     # print(mesh.s)

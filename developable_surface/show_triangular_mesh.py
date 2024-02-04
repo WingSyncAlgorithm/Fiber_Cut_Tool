@@ -64,6 +64,6 @@ class Mesh:
 
 
 if __name__ == "__main__":
-    mesh = Mesh('arc.stl')
+    mesh = Mesh('strange.stl')
     mesh.read_stl()
     mesh.plot_mesh()

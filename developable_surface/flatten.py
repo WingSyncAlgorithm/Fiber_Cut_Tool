@@ -43,7 +43,7 @@ def flatten(mesh, s1, s2, s3):
         flatten(mesh, s3, s2, s5)
 
 
-mesh = TriangleMesh('arc.stl')
+mesh = TriangleMesh('custom.stl')
 print(mesh.vertices)
 for i, start_edge in enumerate(mesh.start_edges):
     start_point1 = start_edge[0]
