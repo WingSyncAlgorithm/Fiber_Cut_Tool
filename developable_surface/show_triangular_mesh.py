@@ -59,11 +59,11 @@ class Mesh:
             ax.set_zlabel('Z')
 
             # Set the initial view
-            ax.view_init(elev=100, azim=30)  # Adjust these values as needed
+            ax.view_init(elev=-30, azim=30)  # Adjust these values as needed
             plt.show()
 
 
 if __name__ == "__main__":
-    mesh = Mesh('strange.stl')
+    mesh = Mesh('cylinder_surface.stl')
     mesh.read_stl()
     mesh.plot_mesh()

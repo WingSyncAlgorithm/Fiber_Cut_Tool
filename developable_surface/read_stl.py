@@ -39,20 +39,40 @@ class TriangleMesh:
         self.calculate_gaussian_curvature()
         # 尋找高斯曲率過大的點
         for vertex_idx in range(self.num_vertices):
-            if self.gaussian_curvature[vertex_idx] > 0:
+            if self.gaussian_curvature[vertex_idx] > 0.0005:
                 # print("h")
                 self.high_curvature_points = np.append(
                     self.high_curvature_points, vertex_idx)
         # print("first", self.high_curvature_points)
-        '''
+
         for point in self.high_curvature_points:
             for add_point_idx in range(np.size(self.length, axis=1)):
                 if self.length[point, add_point_idx] != -1:
                     self.high_curvature_points = np.append(
                         self.high_curvature_points, add_point_idx)
-        # print("second")
-        '''
         self.high_curvature_points = np.unique(self.high_curvature_points)
+        print(np.size(self.high_curvature_points))
+        for point in self.high_curvature_points:
+            for add_point_idx in range(np.size(self.length, axis=1)):
+                if self.length[point, add_point_idx] != -1:
+                    self.high_curvature_points = np.append(
+                        self.high_curvature_points, add_point_idx)
+        self.high_curvature_points = np.unique(self.high_curvature_points)
+        print(np.size(self.high_curvature_points))
+        for point in self.high_curvature_points:
+            for add_point_idx in range(np.size(self.length, axis=1)):
+                if self.length[point, add_point_idx] != -1:
+                    self.high_curvature_points = np.append(
+                        self.high_curvature_points, add_point_idx)
+        for point in self.high_curvature_points:
+            for add_point_idx in range(np.size(self.length, axis=1)):
+                if self.length[point, add_point_idx] != -1:
+                    self.high_curvature_points = np.append(
+                        self.high_curvature_points, add_point_idx)
+        self.high_curvature_points = np.unique(self.high_curvature_points)
+        print(np.size(self.high_curvature_points))
+        self.high_curvature_points = np.unique(self.high_curvature_points)
+        print(np.size(self.high_curvature_points))
         self.high_curvature_graph = np.full(
             [np.size(self.vertices, axis=0), np.size(self.vertices, axis=0)], -1, dtype=float)
         for index, point1_idx in enumerate(self.high_curvature_points):
@@ -66,7 +86,7 @@ class TriangleMesh:
         high_curvature_subgraph = self.separate_disconnected_components(
             self.high_curvature_graph)
         print(np.size(high_curvature_subgraph, axis=0))
-        '''
+
         x_data, y_data, z_data = [], [], []
         for i in range(np.size(self.high_curvature_graph, axis=0)):
             for j in range(np.size(self.high_curvature_graph, axis=1)):
@@ -93,12 +113,12 @@ class TriangleMesh:
         ax.set_xlabel('X 軸')
         ax.set_ylabel('Y 軸')
         ax.set_zlabel('Z 軸')
-        '''
+
         # 執行切割
         # print(high_curvature_subgraph)
         self.start_edges = []
         for subgraph in range(np.size(high_curvature_subgraph, axis=0)):
-            # print(subgraph)
+            print(subgraph)
             max_cycle_cost, max_cycle_path = self.find_max_cycle_cost(
                 high_curvature_subgraph[subgraph][:][:])
             # print(self.vertices, max_cycle_path)
@@ -312,7 +332,7 @@ class TriangleMesh:
 
 
 if __name__ == "__main__":
-    mesh = TriangleMesh('strange.stl')
+    mesh = TriangleMesh('cylinder_surface.stl')
     # print(mesh.vertices)
     # print(mesh.triangles)
     # print(mesh.s)
