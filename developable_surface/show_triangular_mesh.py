@@ -51,9 +51,9 @@ class Mesh:
                 for i in range(3):
                     ax.plot([triangle[i][0], triangle[(i + 1) % 3][0]],
                             [triangle[i][1], triangle[(i + 1) % 3][1]],
-                            [triangle[i][2], triangle[(i + 1) % 3][2]], c='r', linewidth=0.1)
+                            [triangle[i][2], triangle[(i + 1) % 3][2]], c='r', linewidth=1)
             ax.scatter(self.vertices[:, 0], self.vertices[:, 1],
-                       self.vertices[:, 2], c='r', marker='o', s=0.001)  # 調整s參數
+                       self.vertices[:, 2], c='r', marker='o', s=0.01)  # 調整s參數
             ax.set_xlabel('X')
             ax.set_ylabel('Y')
             ax.set_zlabel('Z')
@@ -64,6 +64,6 @@ class Mesh:
 
 
 if __name__ == "__main__":
-    mesh = Mesh('cylinder_surface.stl')
+    mesh = Mesh('arc.stl')
     mesh.read_stl()
     mesh.plot_mesh()
