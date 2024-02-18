@@ -5,7 +5,7 @@ from mpl_toolkits.mplot3d import Axes3D
 
 def generate_cylinder_points(radius, height, num_points):
     theta = np.linspace(0, 2 * np.pi, num_points)
-    z = np.linspace(0, height, 10)
+    z = np.linspace(0, height, 6)
     theta, z = np.meshgrid(theta, z)
     x = radius * np.cos(theta)
     y = radius * np.sin(theta)
@@ -43,7 +43,7 @@ with open("cylinder.stl", "w") as stl_file:
     stl_file.write("solid cylinder\n")
 
     # Write each triangular face
-    for i in range(9):
+    for i in range(5):
         for j in range(100):
             idx1 = 100*i+j
             idx2 = 100*i+100+(j+1) % 100
