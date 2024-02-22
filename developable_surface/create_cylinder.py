@@ -3,9 +3,9 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 
-def generate_cylinder_points(radius, height, num_points):
+def generate_cylinder_points(radius, height, num_points, number_slices):
     theta = np.linspace(0, 2 * np.pi, num_points)
-    z = np.linspace(0, height, 6)
+    z = np.linspace(0, height, number_slices)
     theta, z = np.meshgrid(theta, z)
     x = radius * np.cos(theta)
     y = radius * np.sin(theta)
@@ -25,11 +25,12 @@ def plot_cylinder_surface(x, y, z):
 # 設定圓柱參數
 cylinder_radius = 1.0
 cylinder_height = 3.0
-num_points = 100
+num_points = 50
+number_slices = 20
 
 # 生成圓柱點雲
 x, y, z = generate_cylinder_points(
-    cylinder_radius, cylinder_height, num_points)
+    cylinder_radius, cylinder_height, num_points, number_slices)
 
 # 繪製圓柱側面表面
 plot_cylinder_surface(x, y, z)
@@ -43,11 +44,11 @@ with open("cylinder.stl", "w") as stl_file:
     stl_file.write("solid cylinder\n")
 
     # Write each triangular face
-    for i in range(5):
-        for j in range(100):
-            idx1 = 100*i+j
-            idx2 = 100*i+100+(j+1) % 100
-            idx3 = 100*i+(j+1) % 100
+    for i in range(number_slices-1):
+        for j in range(num_points):
+            idx1 = num_points*i+j
+            idx2 = num_points*i+num_points+(j+1) % num_points
+            idx3 = num_points*i+(j+1) % num_points
             print([idx1, idx2, idx3])
             # Write normal vector
             stl_file.write(f"  facet normal 0.0 0.0 0.0\n")
@@ -63,9 +64,9 @@ with open("cylinder.stl", "w") as stl_file:
             # Write normal vector
             stl_file.write(f"  facet normal 0.0 0.0 0.0\n")
             stl_file.write("    outer loop\n")
-            idx1 = 100*i+j
-            idx2 = idx1+100
-            idx3 = 100*i+100+(j+1) % 100
+            idx1 = num_points*i+j
+            idx2 = idx1+num_points
+            idx3 = num_points*i+num_points+(j+1) % num_points
             print([idx1, idx2, idx3])
             # Write vertices
             for idx in [idx1, idx2, idx3]:

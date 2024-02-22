@@ -335,26 +335,3 @@ class TriangleMesh:
 
 if __name__ == "__main__":
     mesh = TriangleMesh('cylinder_surface.stl')
-    # print(mesh.vertices)
-    # print(mesh.triangles)
-    # print(mesh.s)
-#    print(mesh.connect)
- #   print(mesh.area)
-  #  print(mesh.angle)
-   # print(mesh.gaussian_curvature)
-    # print(mesh.num_original_vertices, mesh.num_vertices)
-    # print("cut", mesh.cut)
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111, projection='3d')
-
-    # 繪製三維圖形
-    # ax.scatter(mesh.vertices[1850:, 0], mesh.vertices[1850:,
-    #                                                  1], mesh.vertices[1850:, 2], c='blue', marker='o', s=1)
-
-    # 設定座標軸標籤
-    # ax.set_xlabel('X 軸')
-    # ax.set_ylabel('Y 軸')
-    # ax.set_zlabel('Z 軸')
-
-    # 顯示圖形
-    # plt.show()
