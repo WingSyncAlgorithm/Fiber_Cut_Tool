@@ -2,6 +2,7 @@ import numpy as np
 from stl import Mesh
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import time
 
 
 class TriangleMesh:
@@ -18,11 +19,20 @@ class TriangleMesh:
         self.high_curvature_points = np.full(0, -1, dtype=int)
 
         # 轉換三角形儲存格式
+        print("p1")
+        st = time.time()
         for triangle_idx in range(np.size(stl.vectors, axis=0)):
             for vertex in range(3):
                 for i in range(np.size(self.vertices, axis=0)):
                     if (stl.vectors[triangle_idx, vertex, :] == self.vertices[i]).all():
                         self.triangles[triangle_idx, vertex] = i
+                        break
+        print(time.time()-st)
+        print("p2")
+        st = time.time()
+
+        print()
+
         # 初始化self.length
         self.length = np.full(
             (self.num_vertices, self.num_vertices), -1, dtype=float)
@@ -38,14 +48,22 @@ class TriangleMesh:
         self.gaussian_curvature = np.zeros(self.num_vertices, dtype=float)
         self.calculate_gaussian_curvature()
         # 尋找高斯曲率過大的點
+        print(time.time()-st)
+        print("p3")
+        st = time.time()
+
         for vertex_idx in range(self.num_vertices):
-            if self.gaussian_curvature[vertex_idx] > 0.0005:
-                # print("h")
+            if self.gaussian_curvature[vertex_idx] < 0.0005:
                 self.high_curvature_points = np.append(
                     self.high_curvature_points, vertex_idx)
+
+        print(time.time()-st)
+        print("p4")
+        st = time.time()
+
         '''
-        for point in self.high_curvature_points:
-            for add_point_idx in range(np.size(self.length, axis=1)):
+        for point in self.high_curvature_points:  #O(n)
+            for add_point_idx in range(np.size(self.length, axis=1)): #O(n)
                 if self.length[point, add_point_idx] != -1:
                     self.high_curvature_points = np.append(
                         self.high_curvature_points, add_point_idx)
@@ -80,7 +98,8 @@ class TriangleMesh:
 
         high_curvature_subgraph = self.separate_disconnected_components(
             self.high_curvature_graph)
-        
+        '''
+        '''
         x_data, y_data, z_data = [], [], []
         for i in range(np.size(self.high_curvature_graph, axis=0)):
             for j in range(np.size(self.high_curvature_graph, axis=1)):
@@ -122,6 +141,7 @@ class TriangleMesh:
                     max_cycle_path)], max_cycle_path[(point+1) % np.size(max_cycle_path)], point == 0)
             # print(high_curvature_subgraph[subgraph][:][:])
         '''
+
         self.length = np.full(
             (self.num_vertices, self.num_vertices), -1, dtype=float)
         self.calculate_length()
@@ -130,6 +150,10 @@ class TriangleMesh:
         # 儲存由兩點所連接的第三點
         self.connect = np.full(
             (self.num_vertices, self.num_vertices), -1, dtype=int)
+        print(time.time()-st)
+        print("p5")
+        st = time.time()
+
         for triangle_idx in range(np.size(self.triangles, axis=0)):
             self.connect[self.triangles[triangle_idx, 0],
                          self.triangles[triangle_idx, 1]] = self.triangles[triangle_idx, 2]
@@ -137,6 +161,8 @@ class TriangleMesh:
                          self.triangles[triangle_idx, 2]] = self.triangles[triangle_idx, 0]
             self.connect[self.triangles[triangle_idx, 2],
                          self.triangles[triangle_idx, 0]] = self.triangles[triangle_idx, 1]
+        print(time.time()-st)
+        print("p6")
 
     def calculate_length(self):
         for triangle_idx in range(np.size(self.triangles, axis=0)):
@@ -326,4 +352,4 @@ class TriangleMesh:
 
 
 if __name__ == "__main__":
-    mesh = TriangleMesh('cylinder_surface.stl')
+    mesh = TriangleMesh('cylinder.stl')
