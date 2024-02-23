@@ -73,32 +73,31 @@ class TriangleMesh:
         print()
 
         # 初始化self.length
+
         self.length = np.full(
             (self.num_vertices, self.num_vertices), -1, dtype=float)
         self.calculate_length()
+
         # 計算三角形面積
         self.area = np.zeros(np.size(self.triangles), dtype=float)
         self.calculate_area()
+
         # 計算角度
         self.angle = np.zeros(
             (self.num_vertices, self.num_vertices, self.num_vertices), dtype=float)
         self.calculate_angle()
+
         # 計算高斯曲率
+        #######################
         self.gaussian_curvature = np.zeros(self.num_vertices, dtype=float)
         self.calculate_gaussian_curvature()
-        # 尋找高斯曲率過大的點
-        print(time.time()-st)
-        print("p3")
-        st = time.time()
+        #################
 
+        # 尋找高斯曲率過大的點
         for vertex_idx in range(self.num_vertices):
             if self.gaussian_curvature[vertex_idx] < 0.0005:
                 self.high_curvature_points = np.append(
                     self.high_curvature_points, vertex_idx)
-
-        print(time.time()-st)
-        print("p4")
-        st = time.time()
 
         '''
         for point in self.high_curvature_points:  #O(n)
@@ -189,9 +188,6 @@ class TriangleMesh:
         # 儲存由兩點所連接的第三點
         self.connect = np.full(
             (self.num_vertices, self.num_vertices), -1, dtype=int)
-        print(time.time()-st)
-        print("p5")
-        st = time.time()
 
         for triangle_idx in range(np.size(self.triangles, axis=0)):
             self.connect[self.triangles[triangle_idx, 0],
@@ -200,8 +196,6 @@ class TriangleMesh:
                          self.triangles[triangle_idx, 2]] = self.triangles[triangle_idx, 0]
             self.connect[self.triangles[triangle_idx, 2],
                          self.triangles[triangle_idx, 0]] = self.triangles[triangle_idx, 1]
-        print(time.time()-st)
-        print("p6")
 
     def calculate_length(self):
         for triangle_idx in range(np.size(self.triangles, axis=0)):
@@ -306,7 +300,7 @@ class TriangleMesh:
                 self.angle[point3_idx, point2_idx,
                            point1_idx] = np.arccos(cos_theta)
 
-    @profile
+    #@profile
     def calculate_gaussian_curvature(self):
 
         for vertex_idx in range(self.num_vertices):
@@ -323,6 +317,7 @@ class TriangleMesh:
                     sum_theta += angles[self.triangles[triangle_idx][2], self.triangles[triangle_idx][0]]
                 elif self.triangles[triangle_idx][2] == vertex_idx:
                     sum_theta += angles[self.triangles[triangle_idx][0], self.triangles[triangle_idx][1]]
+
             self.gaussian_curvature[vertex_idx] = (
                 2*np.pi-sum_theta)/(a_vertex/3)
             # if self.gaussian_curvature[vertex_idx] > 0.01:
