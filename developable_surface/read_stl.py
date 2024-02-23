@@ -19,47 +19,41 @@ class TriangleMesh:
         self.high_curvature_points = np.full(0, -1, dtype=int)
 
         # 轉換三角形儲存格式
-        print("p1")
-        st = time.time()
+        # 改成用struct存之後sort
         for triangle_idx in range(np.size(stl.vectors, axis=0)):
             for vertex in range(3):
                 for i in range(np.size(self.vertices, axis=0)):
                     if (stl.vectors[triangle_idx, vertex, :] == self.vertices[i]).all():
                         self.triangles[triangle_idx, vertex] = i
                         break
-        print(time.time()-st)
-        print("p2")
-        st = time.time()
-
-        print()
+        # end
 
         # 初始化self.length
+
         self.length = np.full(
             (self.num_vertices, self.num_vertices), -1, dtype=float)
         self.calculate_length()
+
         # 計算三角形面積
         self.area = np.zeros(np.size(self.triangles), dtype=float)
         self.calculate_area()
+
         # 計算角度
         self.angle = np.zeros(
             (self.num_vertices, self.num_vertices, self.num_vertices), dtype=float)
         self.calculate_angle()
+
         # 計算高斯曲率
+        #######################
         self.gaussian_curvature = np.zeros(self.num_vertices, dtype=float)
         self.calculate_gaussian_curvature()
-        # 尋找高斯曲率過大的點
-        print(time.time()-st)
-        print("p3")
-        st = time.time()
+        #################
 
+        # 尋找高斯曲率過大的點
         for vertex_idx in range(self.num_vertices):
             if self.gaussian_curvature[vertex_idx] < 0.0005:
                 self.high_curvature_points = np.append(
                     self.high_curvature_points, vertex_idx)
-
-        print(time.time()-st)
-        print("p4")
-        st = time.time()
 
         '''
         for point in self.high_curvature_points:  #O(n)
@@ -150,9 +144,6 @@ class TriangleMesh:
         # 儲存由兩點所連接的第三點
         self.connect = np.full(
             (self.num_vertices, self.num_vertices), -1, dtype=int)
-        print(time.time()-st)
-        print("p5")
-        st = time.time()
 
         for triangle_idx in range(np.size(self.triangles, axis=0)):
             self.connect[self.triangles[triangle_idx, 0],
@@ -161,8 +152,6 @@ class TriangleMesh:
                          self.triangles[triangle_idx, 2]] = self.triangles[triangle_idx, 0]
             self.connect[self.triangles[triangle_idx, 2],
                          self.triangles[triangle_idx, 0]] = self.triangles[triangle_idx, 1]
-        print(time.time()-st)
-        print("p6")
 
     def calculate_length(self):
         for triangle_idx in range(np.size(self.triangles, axis=0)):
@@ -266,11 +255,18 @@ class TriangleMesh:
                            point3_idx] = np.arccos(cos_theta)
 
     def calculate_gaussian_curvature(self):
+
+        # 備註:  若for loop中有需要搜尋該編號對應的位置時，不要用linear search, 用binary search(寫成function較好維護)
+        # 用tracemalloc追蹤是哪邊 allocate大量的記憶體，看看能否重複使用(多次allocate記憶體也很花時間)
         for vertex_idx in range(self.num_vertices):
             a_vertex = 0
+
+            # for search
+            # 改成在前面建立點的編號時，多開一個2d array儲存點所接到的三角形(編號)-->不用搜尋
             for triangle_idx in range(np.size(self.triangles, axis=0)):
                 if (self.triangles[triangle_idx, :] == vertex_idx).any():
                     a_vertex += self.area[triangle_idx]
+
             self.gaussian_curvature[vertex_idx] = (
                 2*np.pi-np.sum(self.angle[:, vertex_idx, :]))/(a_vertex/3)
             # if self.gaussian_curvature[vertex_idx] > 0.01:
