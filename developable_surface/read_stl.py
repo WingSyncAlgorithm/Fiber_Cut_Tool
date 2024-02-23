@@ -3,8 +3,33 @@ from stl import Mesh
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import time
+from memory_profiler import profile
 
 
+class Point:
+    def __init__(self, x, y, z,triangle_idx,p_idx):
+        self.x = x
+        self.y = y
+        self.z = z
+        self.triangle_idx = triangle_idx
+        self.p_idx = p_idx
+    def __eq__(self, other):
+        return self.x == other.x and self.y == other.y and self.z == other.z
+    def __gt__(self, other):
+        if self.x != other.x:
+            return self.x > other.x
+        elif self.y != other.y:
+            return self.y > other.y
+        else:
+            return self.z > other.z
+    def __lt__(self, other):
+        if self.x != other.x:
+            return self.x < other.x
+        elif self.y != other.y:
+            return self.y < other.y
+        else:
+            return self.z < other.z
+        
 class TriangleMesh:
     def __init__(self, stl_file):
         self.stl = stl_file
@@ -17,16 +42,30 @@ class TriangleMesh:
         self.num_vertices = np.size(self.vertices, axis=0)
         self.triangles = np.zeros((np.size(stl.vectors, axis=0), 3), dtype=int)
         self.high_curvature_points = np.full(0, -1, dtype=int)
-
+        # 2d list --> key: point index, value: triangle index list
+        self.point_triangle_adj = [[] for i in range(self.num_vertices)]
+        
         # 轉換三角形儲存格式
         print("p1")
         st = time.time()
+        temp = [Point for i in range(np.size(stl.vectors, axis=0)*3)]
+        cnt = 0
         for triangle_idx in range(np.size(stl.vectors, axis=0)):
             for vertex in range(3):
-                for i in range(np.size(self.vertices, axis=0)):
-                    if (stl.vectors[triangle_idx, vertex, :] == self.vertices[i]).all():
-                        self.triangles[triangle_idx, vertex] = i
-                        break
+                temp[cnt] = Point(stl.vectors[triangle_idx, vertex, 0],stl.vectors[triangle_idx, vertex, 1],stl.vectors[triangle_idx, vertex, 2],triangle_idx,vertex)
+                cnt += 1
+        temp.sort()
+
+        point_idx = 0
+        self.triangles[temp[0].triangle_idx, temp[0].p_idx] = point_idx
+        for i in range(1,np.size(temp)):
+            if temp[i] != temp[i-1]:
+                point_idx += 1
+            self.triangles[temp[i].triangle_idx, temp[i].p_idx] = point_idx
+            self.point_triangle_adj[point_idx].append(temp[i].triangle_idx)
+            #self.point_triangle_adj[point_idx] = np.append(self.point_triangle_adj[point_idx],temp[i].triangle_idx)
+        del temp
+
         print(time.time()-st)
         print("p2")
         st = time.time()
@@ -264,15 +303,28 @@ class TriangleMesh:
                 cos_theta = dot_product / (magnitude_v1 * magnitude_v2)
                 self.angle[point1_idx, point2_idx,
                            point3_idx] = np.arccos(cos_theta)
+                self.angle[point3_idx, point2_idx,
+                           point1_idx] = np.arccos(cos_theta)
 
+    @profile
     def calculate_gaussian_curvature(self):
+
         for vertex_idx in range(self.num_vertices):
             a_vertex = 0
-            for triangle_idx in range(np.size(self.triangles, axis=0)):
-                if (self.triangles[triangle_idx, :] == vertex_idx).any():
-                    a_vertex += self.area[triangle_idx]
+            for triangle_idx in self.point_triangle_adj[vertex_idx]:
+                a_vertex += self.area[triangle_idx]
+            
+            angles = self.angle[:, vertex_idx, :]
+            sum_theta = 0
+            for triangle_idx in self.point_triangle_adj[vertex_idx]:
+                if self.triangles[triangle_idx][0] == vertex_idx:
+                    sum_theta += angles[self.triangles[triangle_idx][1], self.triangles[triangle_idx][2]]
+                elif self.triangles[triangle_idx][1] == vertex_idx:
+                    sum_theta += angles[self.triangles[triangle_idx][2], self.triangles[triangle_idx][0]]
+                elif self.triangles[triangle_idx][2] == vertex_idx:
+                    sum_theta += angles[self.triangles[triangle_idx][0], self.triangles[triangle_idx][1]]
             self.gaussian_curvature[vertex_idx] = (
-                2*np.pi-np.sum(self.angle[:, vertex_idx, :]))/(a_vertex/3)
+                2*np.pi-sum_theta)/(a_vertex/3)
             # if self.gaussian_curvature[vertex_idx] > 0.01:
             # print(
             #   self.gaussian_curvature[vertex_idx], self.vertices[vertex_idx, :])
