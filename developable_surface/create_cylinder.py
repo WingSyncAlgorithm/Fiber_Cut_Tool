@@ -3,9 +3,9 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 
-def generate_cylinder_points(radius, height, num_points, number_slices):
+def generate_cylinder_points(radius, height, num_points, num_slices):
     theta = np.linspace(0, 2 * np.pi, num_points)
-    z = np.linspace(0, height, number_slices)
+    z = np.linspace(0, height, num_slices)
     theta, z = np.meshgrid(theta, z)
     x = radius * np.cos(theta)
     y = radius * np.sin(theta)
@@ -26,11 +26,11 @@ def plot_cylinder_surface(x, y, z):
 cylinder_radius = 1.0
 cylinder_height = 3.0
 num_points = 100
-number_slices = 100
+num_slices = 100
 
 # 生成圓柱點雲
 x, y, z = generate_cylinder_points(
-    cylinder_radius, cylinder_height, num_points, number_slices)
+    cylinder_radius, cylinder_height, num_points, num_slices)
 
 # 繪製圓柱側面表面
 plot_cylinder_surface(x, y, z)
@@ -44,7 +44,7 @@ with open("large_cylinder.stl", "w") as stl_file:
     stl_file.write("solid cylinder\n")
 
     # Write each triangular face
-    for i in range(number_slices-1):
+    for i in range(num_slices-1):
         for j in range(num_points):
             idx1 = num_points*i+j
             idx2 = num_points*i+num_points+(j+1) % num_points
