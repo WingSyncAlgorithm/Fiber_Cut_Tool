@@ -97,10 +97,10 @@ class TriangleMesh:
         self.gaussian_curvature = np.zeros(self.num_vertices, dtype=float)
         self.calculate_gaussian_curvature()
         #################
-
+        print(self.gaussian_curvature)
         # 尋找高斯曲率過大的點
         for vertex_idx in range(self.num_vertices):
-            if self.gaussian_curvature[vertex_idx] < 0.0005:
+            if self.gaussian_curvature[vertex_idx] < 0:
                 self.high_curvature_points = np.append(
                     self.high_curvature_points, vertex_idx)
 
@@ -150,7 +150,7 @@ class TriangleMesh:
         ax.set_xlabel('X 軸')
         ax.set_ylabel('Y 軸')
         ax.set_zlabel('Z 軸')
-
+        '''
         # 執行切割
         self.start_edges = []
         for subgraph in range(np.size(high_curvature_subgraph, axis=0)):
@@ -164,7 +164,7 @@ class TriangleMesh:
                 self.cut_edge(max_cycle_path[point % np.size(
                     max_cycle_path)], max_cycle_path[(point+1) % np.size(max_cycle_path)], point == 0)
             # print(high_curvature_subgraph[subgraph][:][:])
-
+        '''
         self.length = np.full(
             (self.num_vertices, self.num_vertices), -1, dtype=float)
         self.calculate_length()
@@ -387,4 +387,4 @@ class TriangleMesh:
 
 
 if __name__ == "__main__":
-    mesh = TriangleMesh('cylinder.stl')
+    mesh = TriangleMesh('cylinder_closed.stl')
