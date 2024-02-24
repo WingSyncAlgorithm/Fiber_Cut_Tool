@@ -100,15 +100,10 @@ class TriangleMesh:
         print(self.gaussian_curvature)
         # 尋找高斯曲率過大的點
         for vertex_idx in range(self.num_vertices):
-            if self.gaussian_curvature[vertex_idx] < 0:
+            if self.gaussian_curvature[vertex_idx] >0.001:
                 self.high_curvature_points = np.append(
                     self.high_curvature_points, vertex_idx)
 
-        for point in self.high_curvature_points:  # O(n)
-            for add_point_idx in range(np.size(self.length, axis=1)):  # O(n)
-                if self.length[point, add_point_idx] != -1:
-                    self.high_curvature_points = np.append(
-                        self.high_curvature_points, add_point_idx)
         self.high_curvature_points = np.unique(self.high_curvature_points)
 
         self.high_curvature_graph = np.full(
@@ -150,6 +145,7 @@ class TriangleMesh:
         ax.set_xlabel('X 軸')
         ax.set_ylabel('Y 軸')
         ax.set_zlabel('Z 軸')
+        plt.show()
         '''
         # 執行切割
         self.start_edges = []
