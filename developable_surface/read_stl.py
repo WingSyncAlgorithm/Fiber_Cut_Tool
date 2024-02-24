@@ -139,7 +139,7 @@ class TriangleMesh:
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
         ax.scatter(x_data, y_data, z_data, c='blue',
-                   marker='o', s=10)  # c是顏色，marker是標記，s是大小
+                   marker='o', s=1)  # c是顏色，marker是標記，s是大小
 
         # 設定座標軸標籤
         ax.set_xlabel('X 軸')
