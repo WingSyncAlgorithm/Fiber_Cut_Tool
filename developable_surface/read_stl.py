@@ -172,16 +172,7 @@ class TriangleMesh:
                          self.triangles[triangle_idx, 2]] = self.triangles[triangle_idx, 0]
             self.connect[self.triangles[triangle_idx, 2],
                          self.triangles[triangle_idx, 0]] = self.triangles[triangle_idx, 1]
-        x_data, y_data, z_data = [], [], []
-        for i in range(np.size(self.vertices, axis=0)):
-            point1_idx = i
-            x_data.append(
-                self.vertices[point1_idx, 0])
-            y_data.append(
-                self.vertices[point1_idx, 1])
-            z_data.append(
-                self.vertices[point1_idx, 2])
-        #print("x_data",len(x_data))
+        x_data, y_data, z_data = self.vertices[:, 0],self.vertices[:, 1],self.vertices[:, 2]
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
         ax.scatter(x_data, y_data, z_data, c='blue',
@@ -398,4 +389,4 @@ class TriangleMesh:
 
 
 if __name__ == "__main__":
-    mesh = TriangleMesh('cylinder_closed.stl')
+    mesh = TriangleMesh('cylinder.stl')
