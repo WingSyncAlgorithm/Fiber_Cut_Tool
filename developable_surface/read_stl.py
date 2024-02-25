@@ -97,7 +97,6 @@ class TriangleMesh:
         self.gaussian_curvature = np.zeros(self.num_vertices, dtype=float)
         self.calculate_gaussian_curvature()
         #################
-        print(self.gaussian_curvature)
         # 尋找高斯曲率過大的點
         for vertex_idx in range(self.num_vertices):
             if self.gaussian_curvature[vertex_idx] > 0.001:
@@ -145,20 +144,21 @@ class TriangleMesh:
         # 執行切割
         self.start_edges = []
         for subgraph in range(np.size(high_curvature_subgraph, axis=0)):
-            print(subgraph)
             max_cycle_cost, max_cycle_path = self.find_max_cycle_cost(
                 high_curvature_subgraph[subgraph][:][:])
-            print("self.length",self.length[max_cycle_path[0],max_cycle_path[1]])
             for point in range(np.size(max_cycle_path)):
                 # print(max_cycle_path[point % np.size(
                 #    max_cycle_path)], max_cycle_path[(point+1) % np.size(max_cycle_path)])
-                self.cut_edge(max_cycle_path[point % np.size(
-                    max_cycle_path)], max_cycle_path[(point+1) % np.size(max_cycle_path)], point == 0)
+                self.cut_edge(self.high_curvature_points[max_cycle_path[point % np.size(
+                    max_cycle_path)]], self.high_curvature_points[max_cycle_path[(point+1) % np.size(max_cycle_path)]], point == 0)
             # print(high_curvature_subgraph[subgraph][:][:])
         print("self.num_vertices",self.num_vertices-self.num_original_vertices)
         self.length = np.full(
             (self.num_vertices, self.num_vertices), -1, dtype=float)
         self.calculate_length()
+        self.angle = np.zeros(
+            (self.num_vertices, self.num_vertices, self.num_vertices), dtype=float)
+        self.calculate_angle()
         # 初始化儲存展開到平面的點的矩陣
         self.s = np.full((self.num_vertices, 2), 99999999, dtype=float)
         # 儲存由兩點所連接的第三點
@@ -172,7 +172,27 @@ class TriangleMesh:
                          self.triangles[triangle_idx, 2]] = self.triangles[triangle_idx, 0]
             self.connect[self.triangles[triangle_idx, 2],
                          self.triangles[triangle_idx, 0]] = self.triangles[triangle_idx, 1]
+        x_data, y_data, z_data = [], [], []
+        for i in range(np.size(self.vertices, axis=0)):
+            point1_idx = i
+            x_data.append(
+                self.vertices[point1_idx, 0])
+            y_data.append(
+                self.vertices[point1_idx, 1])
+            z_data.append(
+                self.vertices[point1_idx, 2])
+        #print("x_data",len(x_data))
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.scatter(x_data, y_data, z_data, c='blue',
+                   marker='o', s=1)  # c是顏色，marker是標記，s是大小
 
+        # 設定座標軸標籤
+        ax.set_xlabel('X 軸')
+        ax.set_ylabel('Y 軸')
+        ax.set_zlabel('Z 軸')
+        ax.axis('equal')
+        plt.show()
     def calculate_length(self):
         for triangle_idx in range(np.size(self.triangles, axis=0)):
             point1_idx = self.triangles[triangle_idx, 0]
@@ -224,11 +244,9 @@ class TriangleMesh:
         for triangle_idx in range(np.size(self.triangles, axis=0)):
             if self.triangles[triangle_idx, 0] == vertex_idx1:
                 if self.triangles[triangle_idx, 1] == vertex_idx2:
-                    print("9")
                     self.triangles[triangle_idx, 0] = vertex_add_idx1
                     self.triangles[triangle_idx, 1] = vertex_add_idx2
                     if start_flatten == True:
-                        print("Yes")
                         self.start_edges.append(
                             [vertex_add_idx1, vertex_add_idx2])
                         self.start_edges.append([vertex_idx2, vertex_idx1])
@@ -236,9 +254,7 @@ class TriangleMesh:
                 if self.triangles[triangle_idx, 2] == vertex_idx2:
                     self.triangles[triangle_idx, 1] = vertex_add_idx1
                     self.triangles[triangle_idx, 2] = vertex_add_idx2
-                    print("9")
                     if start_flatten == True:
-                        print("Yes")
                         self.start_edges.append(
                             [vertex_add_idx1, vertex_add_idx2])
                         self.start_edges.append([vertex_idx2, vertex_idx1])
@@ -246,9 +262,7 @@ class TriangleMesh:
                 if self.triangles[triangle_idx, 0] == vertex_idx2:
                     self.triangles[triangle_idx, 2] = vertex_add_idx1
                     self.triangles[triangle_idx, 0] = vertex_add_idx2
-                    print("9")
                     if start_flatten == True:
-                        print("Yes")
                         self.start_edges.append(
                             [vertex_add_idx1, vertex_add_idx2])
                         self.start_edges.append([vertex_idx2, vertex_idx1])
