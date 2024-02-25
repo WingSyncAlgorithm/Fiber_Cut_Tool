@@ -96,7 +96,8 @@ def flatten(mesh, s1, s2, s3):
 
 
 mesh = TriangleMesh('cylinder.stl')
-mesh.start_edges = [[0, 1]]
+print("mesh.length[29,25]",mesh.length[29,25])
+mesh.start_edges = [[29,25],[168,172]]
 for i, start_edge in enumerate(mesh.start_edges):
     start_point1 = start_edge[0]
     start_point2 = start_edge[1]

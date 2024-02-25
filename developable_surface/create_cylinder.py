@@ -26,7 +26,7 @@ def plot_cylinder_surface(x, y, z):
 cylinder_radius = 1.0
 cylinder_height = 3.0
 num_points = 100
-num_slices = 100
+num_slices = 6
 
 # 生成圓柱點雲
 x, y, z = generate_cylinder_points(
@@ -39,7 +39,7 @@ for s in range(len(x.flatten())):
     points.append([x.flatten()[s], y.flatten()[s], z.flatten()[s]])
 
 
-with open("large_cylinder.stl", "w") as stl_file:
+with open("cylinder.stl", "w") as stl_file:
     # Write STL header
     stl_file.write("solid cylinder\n")
 
