@@ -389,4 +389,4 @@ class TriangleMesh:
 
 
 if __name__ == "__main__":
-    mesh = TriangleMesh('cylinder.stl')
+    mesh = TriangleMesh('cylinder_closed.stl')
