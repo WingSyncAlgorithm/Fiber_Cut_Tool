@@ -99,7 +99,7 @@ class TriangleMesh:
         #################
         # 尋找高斯曲率過大的點
         for vertex_idx in range(self.num_vertices):
-            if self.gaussian_curvature[vertex_idx] > 0.001:
+            if self.gaussian_curvature[vertex_idx] > 0.06:
                 self.high_curvature_points = np.append(
                     self.high_curvature_points, vertex_idx)
         # print("self.high_curvature_points",np.size(self.high_curvature_points))
@@ -117,7 +117,7 @@ class TriangleMesh:
         high_curvature_subgraph = self.separate_disconnected_components(
             self.high_curvature_graph)
         # print("high_curvature_subgraph",high_curvature_subgraph)
-        '''
+        
         x_data, y_data, z_data = [], [], []
         for i in range(np.size(self.high_curvature_graph, axis=0)):
             for j in range(np.size(self.high_curvature_graph, axis=1)):
@@ -141,7 +141,7 @@ class TriangleMesh:
         ax.set_zlabel('Z 軸')
         ax.axis('equal')
         plt.show()
-        '''
+        
         # 儲存由兩點所連接的第三點
         self.connect = np.full(
             (self.num_vertices, self.num_vertices, 2), -1, dtype=int)
@@ -154,8 +154,9 @@ class TriangleMesh:
             for point in range(np.size(max_cycle_path)):
                 # print(max_cycle_path[point % np.size(
                 #    max_cycle_path)], max_cycle_path[(point+1) % np.size(max_cycle_path)])
-                self.cut_edge(self.high_curvature_points[max_cycle_path[point % np.size(
-                    max_cycle_path)]], self.high_curvature_points[max_cycle_path[(point+1) % np.size(max_cycle_path)]], self.high_curvature_points[max_cycle_path[(point+2) % np.size(max_cycle_path)]], point == 0)
+                if len(max_cycle_path)>2:
+                    self.cut_edge(self.high_curvature_points[max_cycle_path[point % np.size(
+                        max_cycle_path)]], self.high_curvature_points[max_cycle_path[(point+1) % np.size(max_cycle_path)]], self.high_curvature_points[max_cycle_path[(point+2) % np.size(max_cycle_path)]], point == 0)
             # print(high_curvature_subgraph[subgraph][:][:])
         print("self.num_vertices", self.num_vertices-self.num_original_vertices)
         self.length = np.full(
@@ -171,6 +172,7 @@ class TriangleMesh:
             (self.num_vertices, self.num_vertices, 2), -1, dtype=int)
 
         self.find_connect()
+        '''
         x_data, y_data, z_data = self.vertices[:,
                                                0], self.vertices[:, 1], self.vertices[:, 2]
         fig = plt.figure()
@@ -184,6 +186,7 @@ class TriangleMesh:
         ax.set_zlabel('Z 軸')
         ax.axis('equal')
         plt.show()
+        '''
 
     def calculate_length(self):
         for triangle_idx in range(np.size(self.triangles, axis=0)):
@@ -253,12 +256,14 @@ class TriangleMesh:
             if self.triangles[triangle_idx, 1] == vertex_idx2:
                 self.triangles[triangle_idx, 0] = vertex_add_idx1
                 self.triangles[triangle_idx, 1] = vertex_add_idx2
+                
                 point1_idx = self.connect[vertex_idx1, vertex_idx2, 0]
                 point2_idx = vertex_idx2
                 point3_idx = self.connect[point1_idx, point2_idx, 0]
                 while point3_idx != vertex_idx3:
                     triangle_middle_idx = self.connect[point1_idx,
                                                        point2_idx, 1]
+                    #print(point3_idx,vertex_idx3)
                     for i in range(3):
                         if self.triangles[triangle_middle_idx, i] == vertex_idx2:
                             self.triangles[triangle_middle_idx,
@@ -266,6 +271,7 @@ class TriangleMesh:
                             break
                     point1_idx = self.connect[point1_idx, point2_idx, 0]
                     point3_idx = self.connect[point1_idx, point2_idx, 0]
+                
 
                 if start_flatten == True:
                     self.start_edges.append(
@@ -275,6 +281,23 @@ class TriangleMesh:
             if self.triangles[triangle_idx, 2] == vertex_idx2:
                 self.triangles[triangle_idx, 1] = vertex_add_idx1
                 self.triangles[triangle_idx, 2] = vertex_add_idx2
+                
+                point1_idx = self.connect[vertex_idx1, vertex_idx2, 0]
+                point2_idx = vertex_idx2
+                point3_idx = self.connect[point1_idx, point2_idx, 0]
+                print(vertex_idx1,vertex_idx2,point1_idx,self.connect[point2_idx, point1_idx, 0], point3_idx,vertex_idx3)
+                while point3_idx != vertex_idx3:
+                    triangle_middle_idx = self.connect[point1_idx,
+                                                       point2_idx, 1]
+                    #print(point3_idx,vertex_idx3)
+                    for i in range(3):
+                        if self.triangles[triangle_middle_idx, i] == vertex_idx2:
+                            self.triangles[triangle_middle_idx,
+                                           i] = vertex_add_idx2
+                            break
+                    point1_idx = self.connect[point1_idx, point2_idx, 0]
+                    point3_idx = self.connect[point1_idx, point2_idx, 0]
+                
                 if start_flatten == True:
                     self.start_edges.append(
                         [vertex_add_idx1, vertex_add_idx2])
@@ -283,6 +306,22 @@ class TriangleMesh:
             if self.triangles[triangle_idx, 0] == vertex_idx2:
                 self.triangles[triangle_idx, 2] = vertex_add_idx1
                 self.triangles[triangle_idx, 0] = vertex_add_idx2
+                '''
+                point1_idx = self.connect[vertex_idx1, vertex_idx2, 0]
+                point2_idx = vertex_idx2
+                point3_idx = self.connect[point1_idx, point2_idx, 0]
+                while point3_idx != vertex_idx3:
+                    triangle_middle_idx = self.connect[point1_idx,
+                                                       point2_idx, 1]
+                    print(point3_idx,vertex_idx3)
+                    for i in range(3):
+                        if self.triangles[triangle_middle_idx, i] == vertex_idx2:
+                            self.triangles[triangle_middle_idx,
+                                           i] = vertex_add_idx2
+                            break
+                    point1_idx = self.connect[point1_idx, point2_idx, 0]
+                    point3_idx = self.connect[point1_idx, point2_idx, 0]
+                '''
                 if start_flatten == True:
                     self.start_edges.append(
                         [vertex_add_idx1, vertex_add_idx2])
@@ -419,4 +458,4 @@ class TriangleMesh:
 
 
 if __name__ == "__main__":
-    mesh = TriangleMesh('cylinder.stl')
+    mesh = TriangleMesh('cylinder_small.stl')
