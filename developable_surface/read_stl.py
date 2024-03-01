@@ -151,7 +151,7 @@ class TriangleMesh:
         self.find_connect()
         # 執行切割
         self.start_edges = []
-        #print(np.size(high_curvature_subgraph, axis=0))
+        print(np.size(high_curvature_subgraph, axis=0))
         for subgraph in range(np.size(high_curvature_subgraph, axis=0)):
             max_cycle_cost, max_cycle_path = self.find_max_cycle_cost(
                 high_curvature_subgraph[subgraph][:][:])
