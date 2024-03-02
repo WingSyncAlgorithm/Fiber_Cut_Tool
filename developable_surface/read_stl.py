@@ -160,6 +160,7 @@ class TriangleMesh:
         self.start_edges = []
         surface_groups = self.separate_disconnected_components(self.length)
         for i in range(np.size(surface_groups, axis=0)):
+            print(i)
             self.find_start_edges(surface_groups[i])
 
     def calculate_length(self):
@@ -324,7 +325,7 @@ class TriangleMesh:
                     self.start_edges.append([point1_idx,point2_idx])
                     c =1
                     break
-                if c==1: break
+            if c==1: break
 
     def calculate_area(self):
         for triangle_idx in range(np.size(self.triangles, axis=0)):
