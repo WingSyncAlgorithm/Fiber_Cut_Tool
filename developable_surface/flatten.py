@@ -95,7 +95,7 @@ def flatten(mesh, s1, s2, s3):
         flatten(mesh, s3, s2, s5)
 
 
-mesh = TriangleMesh('cylinder.stl')
+mesh = TriangleMesh('cylinder_small.stl')
 print(mesh.start_edges)
 #print("mesh.length",mesh.start_edges[0][0],mesh.start_edges[0][1])
 mesh.start_edges = [mesh.start_edges[0][:]]
@@ -116,6 +116,10 @@ for i, start_edge in enumerate(mesh.start_edges):
 # 提取 x 和 y 值
 x_value = mesh.s[:, 0]
 y_value = mesh.s[:, 1]
+
+x_value = [x for x in x_value if x != 99999999]
+y_value = [y for y in y_value if y != 99999999]
+
 
 # 繪製單一點的散點圖
 plt.scatter(x_value, y_value, color='red', marker='o')
