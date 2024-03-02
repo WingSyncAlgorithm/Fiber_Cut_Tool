@@ -67,13 +67,13 @@ class TriangleMesh:
         for i in range(1, np.size(temp)):
             if temp[i].x != temp[i-1].x or temp[i].y != temp[i-1].y or temp[i].z != temp[i-1].z:
                 point_idx += 1
-                print(point_idx,temp[i].x, temp[i-1].x,temp[i].y, temp[i-1].y,temp[i].z, temp[i-1].z)
+                #print(point_idx,temp[i].x, temp[i-1].x,temp[i].y, temp[i-1].y,temp[i].z, temp[i-1].z)
             self.triangles[temp[i].triangle_idx, temp[i].p_idx] = point_idx
             self.vertices[point_idx,:] = [temp[i].x, temp[i].y,temp[i].z]
             self.point_triangle_adj[point_idx].append(temp[i].triangle_idx)
             # self.point_triangle_adj[point_idx] = np.append(self.point_triangle_adj[point_idx],temp[i].triangle_idx)
         del temp
-        print(self.vertices)
+        #print(self.vertices)
         print(time.time()-st)
         print("p2")
         st = time.time()
@@ -102,7 +102,7 @@ class TriangleMesh:
         #################
         # 尋找高斯曲率過大的點
         for vertex_idx in range(self.num_vertices):
-            if self.gaussian_curvature[vertex_idx] > 0.06:
+            if self.gaussian_curvature[vertex_idx] > 0.0001:
                 self.high_curvature_points = np.append(
                     self.high_curvature_points, vertex_idx)
         # print("self.high_curvature_points",np.size(self.high_curvature_points))
@@ -121,29 +121,8 @@ class TriangleMesh:
             self.high_curvature_graph)
         # print("high_curvature_subgraph",high_curvature_subgraph)
         
-        x_data, y_data, z_data = [], [], []
-        for i in range(np.size(self.high_curvature_graph, axis=0)):
-            for j in range(np.size(self.high_curvature_graph, axis=1)):
-                if self.high_curvature_graph[i][j] != -1:
-                    point1_idx = self.high_curvature_points[i]
-                    x_data.append(
-                        self.vertices[point1_idx, 0])
-                    y_data.append(
-                        self.vertices[point1_idx, 1])
-                    z_data.append(
-                        self.vertices[point1_idx, 2])
-        print("x_data",len(x_data))
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        ax.scatter(x_data, y_data, z_data, c='blue',
-                   marker='o', s=1)  # c是顏色，marker是標記，s是大小
-
-        # 設定座標軸標籤
-        ax.set_xlabel('X 軸')
-        ax.set_ylabel('Y 軸')
-        ax.set_zlabel('Z 軸')
-        ax.axis('equal')
-        plt.show()
+        self.plot_graph(high_curvature_subgraph[0])
+        self.plot_graph(high_curvature_subgraph[1])
         
         # 儲存由兩點所連接的第三點
         self.connect = np.full(
@@ -151,10 +130,12 @@ class TriangleMesh:
         self.find_connect()
         # 執行切割
         self.start_edges = []
-        print(np.size(high_curvature_subgraph, axis=0))
+        #print(np.size(high_curvature_subgraph, axis=0))
         for subgraph in range(np.size(high_curvature_subgraph, axis=0)):
+            #print("find_max_cycle_cost")
             max_cycle_cost, max_cycle_path = self.find_max_cycle_cost(
                 high_curvature_subgraph[subgraph][:][:])
+            self.plot_points(max_cycle_path)
             for point in range(np.size(max_cycle_path)):
                 # print(max_cycle_path[point % np.size(
                 #    max_cycle_path)], max_cycle_path[(point+1) % np.size(max_cycle_path)])
@@ -163,7 +144,7 @@ class TriangleMesh:
                     self.cut_edge(self.high_curvature_points[max_cycle_path[point % np.size(
                         max_cycle_path)]], self.high_curvature_points[max_cycle_path[(point+1) % np.size(max_cycle_path)]], self.high_curvature_points[max_cycle_path[(point+2) % np.size(max_cycle_path)]], point == 0)
             # print(high_curvature_subgraph[subgraph][:][:])
-        print("self.num_vertices", self.num_vertices-self.num_original_vertices)
+        #print("self.num_vertices", self.num_vertices-self.num_original_vertices)
         self.length = np.full(
             (self.num_vertices, self.num_vertices), -1, dtype=float)
         self.calculate_length()
@@ -177,21 +158,6 @@ class TriangleMesh:
             (self.num_vertices, self.num_vertices, 2), -1, dtype=int)
 
         self.find_connect()
-        '''
-        x_data, y_data, z_data = self.vertices[:,
-                                               0], self.vertices[:, 1], self.vertices[:, 2]
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        ax.scatter(x_data, y_data, z_data, c='blue',
-                   marker='o', s=1)  # c是顏色，marker是標記，s是大小
-
-        # 設定座標軸標籤
-        ax.set_xlabel('X 軸')
-        ax.set_ylabel('Y 軸')
-        ax.set_zlabel('Z 軸')
-        ax.axis('equal')
-        plt.show()
-        '''
 
     def calculate_length(self):
         for triangle_idx in range(np.size(self.triangles, axis=0)):
@@ -405,14 +371,16 @@ class TriangleMesh:
     def find_max_cycle_cost_helper(self, graph, start_node, current_node, visited, current_cost, max_cost, path, max_path):
         visited[current_node] = True
         path.append(current_node)
-      #  print("find_max_cycle_cost_helper")
+        #print("find_max_cycle_cost_helper")
 
         for neighbor in range(len(graph)):
-            if graph[current_node, neighbor] > 0:  # Check if there is an edge
+            if graph[current_node, neighbor] != -1:  # Check if there is an edge
                 if not visited[neighbor]:
+                    #print(neighbor)
                     max_cost, max_path = self.find_max_cycle_cost_helper(
                         graph, start_node, neighbor, visited, current_cost + graph[current_node, neighbor], max_cost, path, max_path)
                 elif neighbor == start_node:  # Found a cycle
+                    #print(neighbor)
                     if current_cost + graph[current_node, neighbor] > max_cost:
                         max_cost = current_cost + graph[current_node, neighbor]
                         max_path = path.copy()
@@ -429,9 +397,10 @@ class TriangleMesh:
 
         for start_node in range(num_nodes):
             visited = np.zeros(num_nodes, dtype=bool)
+            #print("find_max_cycle_cost_helper")
             cycle_cost, cycle_path = self.find_max_cycle_cost_helper(
                 graph, start_node, start_node, visited, 0, max_cost, [], [])
-            # print("find_max_cycle_cost", cycle_cost, cycle_path)
+            print("find_max_cycle_cost", cycle_cost, cycle_path)
             if cycle_cost > max_cost:
                 max_cost = cycle_cost
                 max_path = cycle_path
@@ -474,7 +443,53 @@ class TriangleMesh:
             separated_graphs.append(separated_graph)
 
         return separated_graphs
+    def plot_graph(self,high_curvature_graph):
+        x_data, y_data, z_data = [], [], []
+        for i in range(np.size(high_curvature_graph, axis=0)):
+            for j in range(np.size(high_curvature_graph, axis=1)):
+                if high_curvature_graph[i][j] != -1:
+                    point1_idx = self.high_curvature_points[i]
+                    x_data.append(
+                        self.vertices[point1_idx, 0])
+                    y_data.append(
+                        self.vertices[point1_idx, 1])
+                    z_data.append(
+                        self.vertices[point1_idx, 2])
+                    print(point1_idx)
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.scatter(x_data, y_data, z_data, c='blue',
+                   marker='o', s=1)  # c是顏色，marker是標記，s是大小
 
+        # 設定座標軸標籤
+        ax.set_xlabel('X 軸')
+        ax.set_ylabel('Y 軸')
+        ax.set_zlabel('Z 軸')
+        ax.axis('equal')
+        plt.show()
+    
+    def plot_points(self,points):
+        x_data, y_data, z_data = [], [], []
+        for point_idx in points:
+            x_data.append(
+                self.vertices[self.high_curvature_points[point_idx], 0])
+            y_data.append(
+                self.vertices[self.high_curvature_points[point_idx], 1])
+            z_data.append(
+                self.vertices[self.high_curvature_points[point_idx], 2])
+            print(point_idx)
+        #print("x_data",len(x_data))
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.scatter(x_data, y_data, z_data, c='blue',
+                   marker='o', s=1)  # c是顏色，marker是標記，s是大小
+
+        # 設定座標軸標籤
+        ax.set_xlabel('X 軸')
+        ax.set_ylabel('Y 軸')
+        ax.set_zlabel('Z 軸')
+        ax.axis('equal')
+        plt.show()
 
 if __name__ == "__main__":
     mesh = TriangleMesh('cylinder_small.stl')
