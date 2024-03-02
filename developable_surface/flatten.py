@@ -101,8 +101,8 @@ print(mesh.start_edges)
 for i, start_edge in enumerate(mesh.start_edges):
     start_point1 = start_edge[0]
     start_point2 = start_edge[1]
-    mesh.s[start_point1, :] = [i*10, 0]
-    mesh.s[start_point2, :] = [i*10+mesh.length[start_point1, start_point2], 0]
+    mesh.s[start_point1, :] = [i*30, 0]
+    mesh.s[start_point2, :] = [i*30+mesh.length[start_point1, start_point2], 0]
 
     next_point1 = mesh.connect[start_point1, start_point2,0]
     next_point2 = mesh.connect[start_point2, start_point1,0]
