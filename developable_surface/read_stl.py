@@ -121,8 +121,8 @@ class TriangleMesh:
             self.high_curvature_graph)
         # print("high_curvature_subgraph",high_curvature_subgraph)
         
-        self.plot_graph(high_curvature_subgraph[0])
-        self.plot_graph(high_curvature_subgraph[1])
+        #self.plot_graph(high_curvature_subgraph[0])
+        #self.plot_graph(high_curvature_subgraph[1])
         
         # 儲存由兩點所連接的第三點
         self.connect = np.full(
@@ -135,7 +135,7 @@ class TriangleMesh:
             #print("find_max_cycle_cost")
             max_cycle_cost, max_cycle_path = self.find_max_cycle_cost(
                 high_curvature_subgraph[subgraph][:][:])
-            self.plot_points(max_cycle_path)
+            #self.plot_points(max_cycle_path)
             for point in range(np.size(max_cycle_path)):
                 # print(max_cycle_path[point % np.size(
                 #    max_cycle_path)], max_cycle_path[(point+1) % np.size(max_cycle_path)])
@@ -156,8 +156,11 @@ class TriangleMesh:
         # 儲存由兩點所連接的第三點
         self.connect = np.full(
             (self.num_vertices, self.num_vertices, 2), -1, dtype=int)
-
         self.find_connect()
+        self.start_edges = []
+        surface_groups = self.separate_disconnected_components(self.length)
+        for i in range(np.size(surface_groups, axis=0)):
+            self.find_start_edges(surface_groups[i])
 
     def calculate_length(self):
         for triangle_idx in range(np.size(self.triangles, axis=0)):
@@ -312,6 +315,16 @@ class TriangleMesh:
                         [vertex_add_idx1, vertex_add_idx2])
                     self.start_edges.append([vertex_idx2, vertex_idx1])
         self.num_vertices = np.size(self.vertices, axis=0)
+    
+    def find_start_edges(self,surface_group):
+        c=0
+        for point1_idx in range(self.num_vertices):
+            for point2_idx in range(self.num_vertices):
+                if surface_group[point1_idx, point2_idx] != -1 and self.connect[point1_idx,point2_idx,0]!=-1:
+                    self.start_edges.append([point1_idx,point2_idx])
+                    c =1
+                    break
+                if c==1: break
 
     def calculate_area(self):
         for triangle_idx in range(np.size(self.triangles, axis=0)):
@@ -400,7 +413,7 @@ class TriangleMesh:
             #print("find_max_cycle_cost_helper")
             cycle_cost, cycle_path = self.find_max_cycle_cost_helper(
                 graph, start_node, start_node, visited, 0, max_cost, [], [])
-            print("find_max_cycle_cost", cycle_cost, cycle_path)
+            #print("find_max_cycle_cost", cycle_cost, cycle_path)
             if cycle_cost > max_cost:
                 max_cost = cycle_cost
                 max_path = cycle_path
@@ -455,7 +468,7 @@ class TriangleMesh:
                         self.vertices[point1_idx, 1])
                     z_data.append(
                         self.vertices[point1_idx, 2])
-                    print(point1_idx)
+                    #print(point1_idx)
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
         ax.scatter(x_data, y_data, z_data, c='blue',
@@ -467,7 +480,30 @@ class TriangleMesh:
         ax.set_zlabel('Z 軸')
         ax.axis('equal')
         plt.show()
-    
+    def plot_points_graph(self,high_curvature_graph):
+        x_data, y_data, z_data = [], [], []
+        for i in range(np.size(high_curvature_graph, axis=0)):
+            for j in range(np.size(high_curvature_graph, axis=1)):
+                if high_curvature_graph[i][j] != -1:
+                    point1_idx = i
+                    x_data.append(
+                        self.vertices[point1_idx, 0])
+                    y_data.append(
+                        self.vertices[point1_idx, 1])
+                    z_data.append(
+                        self.vertices[point1_idx, 2])
+                    #print(point1_idx)
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.scatter(x_data, y_data, z_data, c='blue',
+                   marker='o', s=1)  # c是顏色，marker是標記，s是大小
+
+        # 設定座標軸標籤
+        ax.set_xlabel('X 軸')
+        ax.set_ylabel('Y 軸')
+        ax.set_zlabel('Z 軸')
+        ax.axis('equal')
+        plt.show()
     def plot_points(self,points):
         x_data, y_data, z_data = [], [], []
         for point_idx in points:
@@ -477,7 +513,7 @@ class TriangleMesh:
                 self.vertices[self.high_curvature_points[point_idx], 1])
             z_data.append(
                 self.vertices[self.high_curvature_points[point_idx], 2])
-            print(point_idx)
+            #print(point_idx)
         #print("x_data",len(x_data))
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
