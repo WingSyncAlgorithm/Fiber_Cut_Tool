@@ -95,14 +95,15 @@ def flatten(mesh, s1, s2, s3):
         flatten(mesh, s3, s2, s5)
 
 
-mesh = TriangleMesh('cylinder_small.stl')
+mesh = TriangleMesh('inclined_cylinder.stl')
 print(mesh.start_edges)
 #print("mesh.length",mesh.start_edges[0][0],mesh.start_edges[0][1])
+print(len(mesh.boundaries))
 for i, start_edge in enumerate(mesh.start_edges):
     start_point1 = start_edge[0]
     start_point2 = start_edge[1]
-    mesh.s[start_point1, :] = [i*30, 0]
-    mesh.s[start_point2, :] = [i*30+mesh.length[start_point1, start_point2], 0]
+    mesh.s[start_point1, :] = [i*60, 0]
+    mesh.s[start_point2, :] = [i*60+mesh.length[start_point1, start_point2], 0]
 
     next_point1 = mesh.connect[start_point1, start_point2,0]
     next_point2 = mesh.connect[start_point2, start_point1,0]
@@ -116,12 +117,14 @@ for i, start_edge in enumerate(mesh.start_edges):
 x_value = mesh.s[:, 0]
 y_value = mesh.s[:, 1]
 
-x_value = [x for x in x_value if x != 99999999]
-y_value = [y for y in y_value if y != 99999999]
 
 
 # 繪製單一點的散點圖
-plt.scatter(x_value, y_value, color='red', marker='o')
+plt.scatter(x_value, y_value, color='red', marker='o',s = 1)
+#for i in range(mesh.num_vertices):
+    #for j in range(i):
+        #if mesh.length[i,j] != -1:
+            #plt.plot([x_value[i], x_value[j]], [y_value[i], y_value[j]], color='blue', linestyle='-', linewidth=2)
 plt.axis('equal')
 # 添加標籤和標題
 plt.xlabel('X-axis')
