@@ -169,8 +169,8 @@ class TriangleMesh:
         for i in range(len(set(self.boundary_idx))):
             if self.boundary_idx.count(i) >= 2:
                 indices = [j for j, value in enumerate(self.boundary_idx) if value == i]
-                for m in range(len(my_array)):
-                    for n in range(m+1, len(my_array)):
+                for m in range(len(indices)):
+                    for n in range(m+1, len(indices)):
                         boundary1_idx = indices[m]
                         boundary2_idx = indices[n]
                         boundary1 = self.boundaries[boundary1_idx]
