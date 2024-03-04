@@ -175,7 +175,7 @@ class TriangleMesh:
                         boundary2_idx = indices[n]
                         boundary1 = self.boundaries[boundary1_idx]
                         boundary2 = self.boundaries[boundary2_idx]
-                        cut_path.append(self.find_cut_path(surface_groups[i]))
+                        cut_path.append(self.find_cut_path(surface_groups[i],boundary1,boundary2))
         
 
                         
