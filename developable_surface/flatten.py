@@ -84,27 +84,29 @@ def flatten(mesh, s1, s2, s3):
     - mesh: TriangleMesh 物件，包含三角網格的相關資訊。
     - s1, s2, s3: 三個點的索引，用於指定要平坦化的三角形。
     """
-    s3 = mesh.connect[s1, s2]
+    s3 = mesh.connect[s1, s2,0]
     mesh.s[s3, :] = calculate_third_point(
         mesh.s[s1], mesh.s[s2], mesh.length[s1, s2], mesh.length[s1, s3], mesh.length[s2, s3])
-    s4 = mesh.connect[s1, s3]
-    s5 = mesh.connect[s3, s2]
+    s4 = mesh.connect[s1, s3,0]
+    s5 = mesh.connect[s3, s2,0]
     if s4 != -1 and mesh.s[s4, 0] == 99999999:
         flatten(mesh, s1, s3, s4)
     if s5 != -1 and mesh.s[s5, 0] == 99999999:
         flatten(mesh, s3, s2, s5)
 
 
-mesh = TriangleMesh('cylinder.stl')
-mesh.start_edges = [[0, 1]]
+mesh = TriangleMesh('inclined_cylinder.stl')
+print(mesh.start_edges)
+#print("mesh.length",mesh.start_edges[0][0],mesh.start_edges[0][1])
+print(len(mesh.boundaries))
 for i, start_edge in enumerate(mesh.start_edges):
     start_point1 = start_edge[0]
     start_point2 = start_edge[1]
-    mesh.s[start_point1, :] = [i*10, 0]
-    mesh.s[start_point2, :] = [i*10+mesh.length[start_point1, start_point2], 0]
+    mesh.s[start_point1, :] = [i*60, 0]
+    mesh.s[start_point2, :] = [i*60+mesh.length[start_point1, start_point2], 0]
 
-    next_point1 = mesh.connect[start_point1, start_point2]
-    next_point2 = mesh.connect[start_point2, start_point1]
+    next_point1 = mesh.connect[start_point1, start_point2,0]
+    next_point2 = mesh.connect[start_point2, start_point1,0]
     if next_point1 != -1:
         flatten(mesh, start_point1, start_point2, next_point1)
     if next_point2 != -1:
@@ -115,8 +117,14 @@ for i, start_edge in enumerate(mesh.start_edges):
 x_value = mesh.s[:, 0]
 y_value = mesh.s[:, 1]
 
+
+
 # 繪製單一點的散點圖
-plt.scatter(x_value, y_value, color='red', marker='o')
+plt.scatter(x_value, y_value, color='red', marker='o',s = 1)
+#for i in range(mesh.num_vertices):
+    #for j in range(i):
+        #if mesh.length[i,j] != -1:
+            #plt.plot([x_value[i], x_value[j]], [y_value[i], y_value[j]], color='blue', linestyle='-', linewidth=2)
 plt.axis('equal')
 # 添加標籤和標題
 plt.xlabel('X-axis')
@@ -128,4 +136,3 @@ plt.legend()
 
 # 顯示圖形
 plt.show()
-print(mesh.length)
