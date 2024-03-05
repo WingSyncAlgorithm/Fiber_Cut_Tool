@@ -80,22 +80,29 @@ class TriangleMesh:
         print("p2")
         st = time.time()
 
-        print()
-
         # 初始化self.length
 
         self.length = np.full(
             (self.num_vertices, self.num_vertices), -1, dtype=float)
         self.calculate_length()
+        print(time.time()-st)
+        print('p3')
+        st = time.time()
 
         # 計算三角形面積
         self.area = np.zeros(np.size(self.triangles), dtype=float)
         self.calculate_area()
+        print(time.time()-st)
+        print('p4')
+        st = time.time()
 
         # 計算角度
         self.angle = np.zeros(
             (self.num_vertices, self.num_vertices, self.num_vertices), dtype=float)
         self.calculate_angle()
+        print(time.time()-st)
+        print('p5')
+        st = time.time()
 
         # 計算高斯曲率
         #######################
@@ -119,10 +126,15 @@ class TriangleMesh:
                         self.gaussian_curvature[point1_idx] + self.gaussian_curvature[point2_idx]) / 2.0
                     self.high_curvature_graph[j,
                                               i] = self.high_curvature_graph[i, j]
+        print(time.time()-st)
+        print('p6')
+        st = time.time()
         high_curvature_subgraph = self.separate_disconnected_components(
             self.high_curvature_graph)
         # print("high_curvature_subgraph",high_curvature_subgraph)
-        
+        print(time.time()-st)
+        print('p7')
+        st = time.time()
         self.plot_graph(high_curvature_subgraph[0])
         self.plot_graph(high_curvature_subgraph[1])
         
@@ -130,6 +142,9 @@ class TriangleMesh:
         self.connect = np.full(
             (self.num_vertices, self.num_vertices, 2), -1, dtype=int)
         self.find_connect()
+        print(time.time()-st)
+        print('p8')
+        st = time.time()
         # 執行切割
         self.boundaries = []
         #print(np.size(high_curvature_subgraph, axis=0))
@@ -151,11 +166,14 @@ class TriangleMesh:
             self.boundaries.append(add_cycle)
             # print(high_curvature_subgraph[subgraph][:][:])
         #print("self.num_vertices", self.num_vertices-self.num_original_vertices)
+        print(time.time()-st)
         self.length = np.full(
             (self.num_vertices, self.num_vertices), -1, dtype=float)
         self.calculate_length()
         surface_groups = self.separate_disconnected_components(self.length)
         self.boundary_idx = []
+        print('p9')
+        st = time.time()
         for i in range(len(self.boundaries)):
             c=0
             for j in range(len(surface_groups)):
@@ -166,6 +184,9 @@ class TriangleMesh:
                         break
                 if c==1: break
         cut_path = []
+        print(time.time()-st)
+        print('p10')
+        st = time.time()
         for i in range(len(set(self.boundary_idx))):
             if self.boundary_idx.count(i) >= 2:
                 indices = [j for j, value in enumerate(self.boundary_idx) if value == i]
@@ -177,7 +198,9 @@ class TriangleMesh:
                         boundary2 = self.boundaries[boundary2_idx]
                         cut_path.append(self.find_cut_path(surface_groups[i],boundary1,boundary2))
         
-
+        print(time.time()-st)
+        print('p11')
+        st = time.time()
                         
 
         self.angle = np.zeros(
@@ -190,10 +213,14 @@ class TriangleMesh:
             (self.num_vertices, self.num_vertices, 2), -1, dtype=int)
         self.find_connect()
         self.start_edges = []
+        print(time.time()-st)
+        print('p11')
+        st = time.time()
         surface_groups = self.separate_disconnected_components(self.length)
         for i in range(np.size(surface_groups, axis=0)):
             print(i)
             self.find_start_edges(surface_groups[i])
+        print(time.time()-st)
 
     def calculate_length(self):
         for triangle_idx in range(np.size(self.triangles, axis=0)):
@@ -402,6 +429,7 @@ class TriangleMesh:
             # print(
             #   self.gaussian_curvature[vertex_idx], self.vertices[vertex_idx, :])
 
+##recursion --> must change
     def find_max_cycle_cost_helper(self, graph, start_node, current_node, visited, current_cost, max_cost, path, max_path):
         visited[current_node] = True
         path.append(current_node)
@@ -428,8 +456,7 @@ class TriangleMesh:
         num_nodes = graph.shape[0]
         max_cost = float('-inf')
         max_path = []
-
-        for start_node in range(num_nodes):
+        for start_node in range(num_nodes): #
             visited = np.zeros(num_nodes, dtype=bool)
             #print("find_max_cycle_cost_helper")
             cycle_cost, cycle_path = self.find_max_cycle_cost_helper(
