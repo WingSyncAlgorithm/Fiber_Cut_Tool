@@ -2,10 +2,12 @@ import numpy as np
 from stl import Mesh
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import math
 import heapq
 import time
 from memory_profiler import profile
-
+import heapq
+#from tools import *
 
 class Point:
     def __init__(self, x, y, z, triangle_idx, p_idx):
@@ -34,7 +36,118 @@ class Point:
         else:
             return self.z < other.z
 
+class AStarNode:
+    def __init__(self, index, neighbor,endPoint,coors):
+        self.D = 1
+        self.idx = index
+        self.neighbor = neighbor
+        self.score = None
+        self.gscore = None # distance from startPoint to current
+        self.hscore = self.D*self._distance_(coors[index],coors[endPoint]) # predict distance
 
+    def _distance_(coor1,coor2):
+        return math.sqrt(
+                    (abs(coor1[0]-coor2[0]))^2+
+                    (abs(coor1[1]-coor2[1]))^2+
+                    (abs(coor1[2]-coor2[2]))^2
+            )
+    def __gt__(self,other):
+        if(self.score == None or other.score == None):
+            if(self.score==None and other.score==None):
+                return False
+            elif(other.score==None):
+                return False
+            else:
+                return True
+            
+        if(self.score!= other.score):
+            return self.score > other.score
+        elif(self.hscore != other.hscore):
+            return self.hscore > other.hscore
+        else:
+            return False
+        
+    def __eq__(self,other):
+        if(self.score == None or other.score == None):
+            return False
+        return (
+            self.score  == other.score and
+            self.gscore == other.gscore and
+            self.hscore == other.hscore
+            )
+
+    def __lt__(self,other):
+        if(self.score == None or other.score == None):
+            if(self.score==None and other.score==None):
+                return False
+            elif(other.score==None):
+                return True
+            else:
+                return False
+            
+        if(self.score!= other.score):
+            return self.score < other.score
+        elif(self.hscore != other.hscore):
+            return self.hscore < other.hscore
+        else:
+            return False #equal
+class AStarNode:
+    def __init__(self, index, neighbor,endPoint,coors):
+        self.D = 1
+        self.idx = index
+        self.inheap = False
+        self.neighbor = neighbor
+        self.score = None
+        self.gscore = None # distance from startPoint to current
+        self.hscore = self.D*self._distance_(coors[index],coors[endPoint]) # predict distance
+
+    def _distance_(self,coor1,coor2):
+        return math.sqrt(
+                    (abs(coor1[0]-coor2[0]))**2+
+                    (abs(coor1[1]-coor2[1]))**2+
+                    (abs(coor1[2]-coor2[2]))**2
+            )
+    def __gt__(self,other):
+        if(self.score == None or other.score == None):
+            if(self.score==None and other.score==None):
+                return False
+            elif(other.score==None):
+                return False
+            else:
+                return True
+            
+        if(self.score!= other.score):
+            return self.score > other.score
+        elif(self.hscore != other.hscore):
+            return self.hscore > other.hscore
+        else:
+            return False
+        
+    def __eq__(self,other):
+        if(self.score == None or other.score == None):
+            return False
+        return (
+            self.score  == other.score and
+            self.gscore == other.gscore and
+            self.hscore == other.hscore
+            )
+
+    def __lt__(self,other):
+        if(self.score == None or other.score == None):
+            if(self.score==None and other.score==None):
+                return False
+            elif(other.score==None):
+                return True
+            else:
+                return False
+            
+        if(self.score!= other.score):
+            return self.score < other.score
+        elif(self.hscore != other.hscore):
+            return self.hscore < other.hscore
+        else:
+            return False #equal
+        
 class TriangleMesh:
     @profile
     def __init__(self, stl_file):
@@ -545,7 +658,7 @@ class TriangleMesh:
             current_node = predecessors[current_node]
 
         return path, distances[end]  # 返回最短路徑的節點序列和路徑長度
-    def find_cut_path(self, graph,start_nodes, end_nodes):
+    def find_cut_path1(self, graph,start_nodes, end_nodes):
         shortest_distance = float('inf')
         shortest_path = []
         for start_node in start_nodes:
@@ -556,6 +669,72 @@ class TriangleMesh:
                     shortest_path = path
         return shortest_path
 
+    def AStar(self,graph1, start_node, end_node):
+        graph=dict()
+        for nidx, n in graph1.items():
+            graph[nidx] = AStarNode(nidx,n,end_node,self.vertices)
+        heap = [start_node]
+        graph[start_node].gscore = 0
+        graph[start_node].score = graph[start_node].gscore + graph[start_node].hscore
+        graph[start_node].inheap = True
+        heapq.heapify(heap)
+        current_node_idx = start_node
+        while(len(heap)!=0 and current_node_idx!=end_node):
+            flag = False
+            current_node = heapq.heappop(heap)
+            current_node.inheap = False
+            current_node_idx = current_node.idx
+            for nidx, dis in current_node.neighbor.items():
+                if(graph[nidx].score == None or graph[nidx].gscore > current_node.gscore+dis):
+                    graph[nidx].gscore = current_node.gscore+dis
+                    graph[nidx].score = graph[nidx].gscore + graph[nidx].hscore
+                    if(graph[nidx].inheap==False):
+                        graph[nidx].inheap = True
+                        heapq.heappush(heap,graph[nidx])
+                    else:
+                        flag = True
+            if(flag==True):
+                heapq.heapify(heap)
+        assert(current_node_idx == end_node) #unknown error
+        
+        # a path is find
+        path = [end_node]
+        while(current_node_idx != start_node):
+            neighbor = list(graph[current_node_idx].neighbor.keys())
+            min_distance = math.inf
+            min_idx = -1
+            #find idx which is current_node's neighbor and have min gscore
+            for idx in neighbor:
+                if(graph[idx].gscore < min_distance):
+                    min_distance = graph[idx].gscore
+                    min_idx = idx
+
+            assert(min_idx!=-1)
+            path.append(min_idx)
+            current_node_idx = min_idx
+        
+        path.reverse()
+        return path, graph[end_node].gscore
+
+    def find_cut_path(self, graph1,start_nodes, end_nodes):
+        graph = dict()
+        for idx, node in enumerate(graph1):
+            tmp = dict()
+            for nidx, dis in enumerate(node):
+                if(dis!=-1):
+                    tmp[nidx]=dis
+            if(len(tmp)!=0):
+                graph[idx] = tmp
+
+        shortest_distance = float('inf')
+        shortest_path = []
+        for start_node in start_nodes:
+            for end_node in end_nodes:
+                path, distance = self.AStar(graph, start_node, end_node)
+                if distance < shortest_distance:
+                    shortest_distance = distance
+                    shortest_path = path
+        return shortest_path
 
     def plot_graph(self,high_curvature_graph):
         x_data, y_data, z_data = [], [], []
