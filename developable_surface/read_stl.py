@@ -673,7 +673,7 @@ class TriangleMesh:
         graph=dict()
         for nidx, n in graph1.items():
             graph[nidx] = AStarNode(nidx,n,end_node,self.vertices)
-        heap = [start_node]
+        heap = [graph[start_node]]
         graph[start_node].gscore = 0
         graph[start_node].score = graph[start_node].gscore + graph[start_node].hscore
         graph[start_node].inheap = True
@@ -705,7 +705,7 @@ class TriangleMesh:
             min_idx = -1
             #find idx which is current_node's neighbor and have min gscore
             for idx in neighbor:
-                if(graph[idx].gscore < min_distance):
+                if(graph[idx].gscore != None and graph[idx].gscore < min_distance):
                     min_distance = graph[idx].gscore
                     min_idx = idx
 
