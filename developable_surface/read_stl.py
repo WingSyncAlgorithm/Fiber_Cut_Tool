@@ -9,6 +9,15 @@ from memory_profiler import profile
 import heapq
 #from tools import *
 
+#wrapper for counting time
+def timer(func):
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        result = func(*args, **kwargs)
+        print(func.__name__, ":", time.time()-start)
+        return result
+    return wrapper
+
 class Point:
     def __init__(self, x, y, z, triangle_idx, p_idx):
         self.x = x
@@ -36,61 +45,6 @@ class Point:
         else:
             return self.z < other.z
 
-class AStarNode:
-    def __init__(self, index, neighbor,endPoint,coors):
-        self.D = 1
-        self.idx = index
-        self.neighbor = neighbor
-        self.score = None
-        self.gscore = None # distance from startPoint to current
-        self.hscore = self.D*self._distance_(coors[index],coors[endPoint]) # predict distance
-
-    def _distance_(coor1,coor2):
-        return math.sqrt(
-                    (abs(coor1[0]-coor2[0]))^2+
-                    (abs(coor1[1]-coor2[1]))^2+
-                    (abs(coor1[2]-coor2[2]))^2
-            )
-    def __gt__(self,other):
-        if(self.score == None or other.score == None):
-            if(self.score==None and other.score==None):
-                return False
-            elif(other.score==None):
-                return False
-            else:
-                return True
-            
-        if(self.score!= other.score):
-            return self.score > other.score
-        elif(self.hscore != other.hscore):
-            return self.hscore > other.hscore
-        else:
-            return False
-        
-    def __eq__(self,other):
-        if(self.score == None or other.score == None):
-            return False
-        return (
-            self.score  == other.score and
-            self.gscore == other.gscore and
-            self.hscore == other.hscore
-            )
-
-    def __lt__(self,other):
-        if(self.score == None or other.score == None):
-            if(self.score==None and other.score==None):
-                return False
-            elif(other.score==None):
-                return True
-            else:
-                return False
-            
-        if(self.score!= other.score):
-            return self.score < other.score
-        elif(self.hscore != other.hscore):
-            return self.hscore < other.hscore
-        else:
-            return False #equal
 class AStarNode:
     def __init__(self, index, neighbor,endPoint,coors):
         self.D = 1
@@ -150,143 +104,107 @@ class AStarNode:
         
 class TriangleMesh:
     @profile
+    @timer
     def __init__(self, stl_file):
+        self.gaussian_curvature_limit = 0.0001
+        self.nograph = True
+
         self.stl = stl_file
         stl = Mesh.from_file(self.stl)
-        x = stl.x.reshape(np.size(stl.x), -1)
-        y = stl.y.reshape(np.size(stl.y), -1)
-        z = stl.z.reshape(np.size(stl.z), -1)
-        self.vertices = np.unique(np.concatenate((x, y, z), axis=1), axis=0)
-        self.num_original_vertices = np.size(self.vertices, axis=0)
-        self.num_vertices = np.size(self.vertices, axis=0)
         self.triangles = np.zeros((np.size(stl.vectors, axis=0), 3), dtype=int)
-        self.high_curvature_points = np.full(0, -1, dtype=int)
-        # 2d list --> key: point index, value: triangle index list
-        self.point_triangle_adj = [[] for i in range(self.num_vertices)]
-
-        # 轉換三角形儲存格式
+        ### self.triangles: 2d list --> key: triangle index, value: 3 point index
+        self.num_triangles = np.size(stl.vectors, axis=0)
+        self.vertices = list() # 2d list : index=vertex index, value[3]=coordinate
+        ### self.vertices: 2d list --> key: point index, value: 3 coordinate
+        
         print("p1")
         st = time.time()
-        temp = [Point for i in range(np.size(stl.vectors, axis=0)*3)]
-        cnt = 0
-        for triangle_idx in range(np.size(stl.vectors, axis=0)):
-            for vertex in range(3):
-                temp[cnt] = Point(stl.vectors[triangle_idx, vertex, 0], stl.vectors[triangle_idx,
-                                  vertex, 1], stl.vectors[triangle_idx, vertex, 2], triangle_idx, vertex)
-                cnt += 1
-        temp.sort()
 
-        point_idx = 0
-        self.triangles[temp[0].triangle_idx, temp[0].p_idx] = point_idx
-        self.vertices[point_idx,:] = [temp[0].x, temp[0].y,temp[0].z]
-        for i in range(1, np.size(temp)):
-            if temp[i].x != temp[i-1].x or temp[i].y != temp[i-1].y or temp[i].z != temp[i-1].z:
-                point_idx += 1
-                #print(point_idx,temp[i].x, temp[i-1].x,temp[i].y, temp[i-1].y,temp[i].z, temp[i-1].z)
-            self.triangles[temp[i].triangle_idx, temp[i].p_idx] = point_idx
-            self.vertices[point_idx,:] = [temp[i].x, temp[i].y,temp[i].z]
-            self.point_triangle_adj[point_idx].append(temp[i].triangle_idx)
-            # self.point_triangle_adj[point_idx] = np.append(self.point_triangle_adj[point_idx],temp[i].triangle_idx)
-        del temp
-        #print(self.vertices)
+        # 分配編號for點和三角形
+        # 2d list --> key: point index, value: triangle index list
+        self.point_triangle_adj = dict()
+        self._convert_triangle_format_(stl)
+        self.num_original_vertices = len(self.vertices) # int  : stl檔案中的點數(contain duplicated points)
+        self.num_vertices = len(self.vertices)
+        
         print(time.time()-st)
         print("p2")
         st = time.time()
 
-        # 初始化self.length
-
-        self.length = np.full(
-            (self.num_vertices, self.num_vertices), -1, dtype=float)
+        # 初始化self.edge_length
+        self.edge_length = [dict() for i in range(self.num_vertices)] #儲存每個點到其他點的距離
+        ### self.edge_length: 2d list --> index: point index, value: dict --> key: point index, value: distance(index,key)
         self.calculate_length()
+
         print(time.time()-st)
-        print('p3')
+        print("p3")
         st = time.time()
 
         # 計算三角形面積
         self.area = np.zeros(np.size(self.triangles), dtype=float)
         self.calculate_area()
+
         print(time.time()-st)
-        print('p4')
+        print("p4")
         st = time.time()
 
         # 計算角度
-        self.angle = np.zeros(
-            (self.num_vertices, self.num_vertices, self.num_vertices), dtype=float)
+        self.angle = [dict() for i in range(self.num_vertices)]
         self.calculate_angle()
+
         print(time.time()-st)
-        print('p5')
+        print("p5")
         st = time.time()
 
         # 計算高斯曲率
-        #######################
         self.gaussian_curvature = np.zeros(self.num_vertices, dtype=float)
+        self.high_curvature_graph = [] # 2d list --> key: point index, value: dict --> key: point index, value: curvature(index,key)
+        self.high_curvature_points = np.full(0, -1, dtype=int)
         self.calculate_gaussian_curvature()
-        #################
         # 尋找高斯曲率過大的點
-        for vertex_idx in range(self.num_vertices):
-            if self.gaussian_curvature[vertex_idx] > 0.0001:
-                self.high_curvature_points = np.append(
-                    self.high_curvature_points, vertex_idx)
-        # print("self.high_curvature_points",np.size(self.high_curvature_points))
-        self.high_curvature_graph = np.full(
-            [np.size(self.high_curvature_points), np.size(self.high_curvature_points)], -1, dtype=float)
-        for i in range(np.size(self.high_curvature_points)):
-            for j in range(i):
-                point1_idx = self.high_curvature_points[i]
-                point2_idx = self.high_curvature_points[j]
-                if self.length[point1_idx, point2_idx] != -1:
-                    self.high_curvature_graph[i, j] = (
-                        self.gaussian_curvature[point1_idx] + self.gaussian_curvature[point2_idx]) / 2.0
-                    self.high_curvature_graph[j,
-                                              i] = self.high_curvature_graph[i, j]
+        self.filter_gaussian_curvature()
+
         print(time.time()-st)
-        print('p6')
+        print("p6")
         st = time.time()
+
+## 是這樣註解嗎
+        # 分離高曲率點
         high_curvature_subgraph = self.separate_disconnected_components(
             self.high_curvature_graph)
         # print("high_curvature_subgraph",high_curvature_subgraph)
+        
         print(time.time()-st)
-        print('p7')
-        st = time.time()
+
         self.plot_graph(high_curvature_subgraph[0])
         self.plot_graph(high_curvature_subgraph[1])
-        
+
+## here~~~
+        print('p7')
+        st = time.time()
+
         # 儲存由兩點所連接的第三點
         self.connect = np.full(
             (self.num_vertices, self.num_vertices, 2), -1, dtype=int)
         self.find_connect()
+        
         print(time.time()-st)
+        
         print('p8')
         st = time.time()
         # 執行切割
         self.boundaries = []
         #print(np.size(high_curvature_subgraph, axis=0))
-        for subgraph in range(np.size(high_curvature_subgraph, axis=0)):
-            #print("find_max_cycle_cost")
-            max_cycle_cost, max_cycle_path = self.find_max_cycle_cost(
-                high_curvature_subgraph[subgraph][:][:])
-            self.boundaries.append(max_cycle_path)
-            #self.plot_points(max_cycle_path)
-            add_cycle = []
-            for point in range(np.size(max_cycle_path)):
-                # print(max_cycle_path[point % np.size(
-                #    max_cycle_path)], max_cycle_path[(point+1) % np.size(max_cycle_path)])
-                if len(max_cycle_path)>2:
-                    #print(point==0)
-                    add_point = self.cut_edge(self.high_curvature_points[max_cycle_path[point % np.size(
-                        max_cycle_path)]], self.high_curvature_points[max_cycle_path[(point+1) % np.size(max_cycle_path)]], self.high_curvature_points[max_cycle_path[(point+2) % np.size(max_cycle_path)]])
-                    add_cycle.append(add_point)
-            self.boundaries.append(add_cycle)
-            # print(high_curvature_subgraph[subgraph][:][:])
+        self.process_cut(high_curvature_subgraph)
         #print("self.num_vertices", self.num_vertices-self.num_original_vertices)
-        print(time.time()-st)
-        self.length = np.full(
-            (self.num_vertices, self.num_vertices), -1, dtype=float)
         self.calculate_length()
-        surface_groups = self.separate_disconnected_components(self.length)
+        surface_groups = self.separate_disconnected_components(self.edge_length)
         self.boundary_idx = []
+        
+        print(time.time()-st)
         print('p9')
         st = time.time()
+
         for i in range(len(self.boundaries)):
             c=0
             for j in range(len(surface_groups)):
@@ -335,27 +253,112 @@ class TriangleMesh:
             self.find_start_edges(surface_groups[i])
         print(time.time()-st)
 
+    @timer
+    def _convert_triangle_format_(self, stl):
+        '''
+        time complexity: O(nlogn)
+        space complexity: O(n)
+        分配編號for點和三角形
+        self.triangles: 2d list --> key: triangle index, value: 3 point index
+        self.vertices: 2d list --> key: point index, value: 3 coordinate
+        '''
+        temp = [Point for i in range(np.size(stl.vectors, axis=0)*3)]
+        cnt = 0
+        for triangle_idx in range(np.size(stl.vectors, axis=0)):
+            for vertex in range(3):
+                temp[cnt] = Point(stl.vectors[triangle_idx, vertex, 0], stl.vectors[triangle_idx,
+                                  vertex, 1], stl.vectors[triangle_idx, vertex, 2], triangle_idx, vertex)
+                cnt += 1
+        temp.sort()
+
+        point_idx = 0
+        self.triangles[temp[0].triangle_idx, temp[0].p_idx] = point_idx
+        self.vertices.append([temp[0].x, temp[0].y,temp[0].z])
+        for i in range(1, np.size(temp)):
+            if temp[i].x != temp[i-1].x or temp[i].y != temp[i-1].y or temp[i].z != temp[i-1].z:
+                point_idx += 1
+                self.vertices.append([temp[i].x, temp[i].y,temp[i].z])
+                #print(point_idx,temp[i].x, temp[i-1].x,temp[i].y, temp[i-1].y,temp[i].z, temp[i-1].z)
+            self.triangles[temp[i].triangle_idx, temp[i].p_idx] = point_idx
+            if(point_idx not in self.point_triangle_adj):
+                self.point_triangle_adj[point_idx] = [temp[i].triangle_idx]
+            else:
+                self.point_triangle_adj[point_idx].append(temp[i].triangle_idx)
+        del temp
+
+    @timer
+    def process_cut(self, high_curvature_subgraph):
+        for subgraph in high_curvature_subgraph:
+            #print("find_max_cycle_cost")
+            max_cycle_cost, max_cycle_path = self.find_max_cycle_cost(
+                subgraph)
+            self.boundaries.append(max_cycle_path)
+            #self.plot_points(max_cycle_path)
+            add_cycle = []
+            for point in range(np.size(max_cycle_path)):
+                # print(max_cycle_path[point % np.size(
+                #    max_cycle_path)], max_cycle_path[(point+1) % np.size(max_cycle_path)])
+                if len(max_cycle_path)>2:
+                    #print(point==0)
+                    add_point = self.cut_edge(self.high_curvature_points[max_cycle_path[point % np.size(
+                        max_cycle_path)]], self.high_curvature_points[max_cycle_path[(point+1) % np.size(max_cycle_path)]], self.high_curvature_points[max_cycle_path[(point+2) % np.size(max_cycle_path)]])
+                    add_cycle.append(add_point)
+            self.boundaries.append(add_cycle)
+            # print(high_curvature_subgraph[subgraph][:][:])
+        return
+    
+    @timer
     def calculate_length(self):
+        self.edge_length.extend([dict() for _ in range(self.num_vertices-len(self.edge_length) )])
+        
         for triangle_idx in range(np.size(self.triangles, axis=0)):
             point1_idx = self.triangles[triangle_idx, 0]
             point2_idx = self.triangles[triangle_idx, 1]
             point3_idx = self.triangles[triangle_idx, 2]
-            point1 = self.vertices[point1_idx, :]
-            point2 = self.vertices[point2_idx, :]
-            point3 = self.vertices[point3_idx, :]
-            self.length[point1_idx, point2_idx] = np.sqrt(
-                np.sum((point2 - point1)**2))
-            self.length[point2_idx, point1_idx] = np.sqrt(
-                np.sum((point2 - point1)**2))
-            self.length[point1_idx, point3_idx] = np.sqrt(
-                np.sum((point3 - point1)**2))
-            self.length[point3_idx, point1_idx] = np.sqrt(
-                np.sum((point3 - point1)**2))
-            self.length[point2_idx, point3_idx] = np.sqrt(
-                np.sum((point3 - point2)**2))
-            self.length[point3_idx, point2_idx] = np.sqrt(
-                np.sum((point3 - point2)**2))
-
+            point1 = self.vertices[point1_idx]
+            point2 = self.vertices[point2_idx]
+            point3 = self.vertices[point3_idx]
+            self.edge_length[point1_idx][point2_idx] = math.sqrt(
+                (point1[0]-point2[0])**2+
+                (point1[1]-point2[1])**2+
+                (point1[2]-point2[2])**2
+            )
+            self.edge_length[point2_idx][point1_idx] = self.edge_length[point1_idx][point2_idx]
+            self.edge_length[point1_idx][point3_idx] = math.sqrt(
+                (point1[0]-point3[0])**2+
+                (point1[1]-point3[1])**2+
+                (point1[2]-point3[2])**2
+            )
+            self.edge_length[point3_idx][point1_idx] = self.edge_length[point1_idx][point3_idx]
+            self.edge_length[point2_idx][point3_idx] = math.sqrt(
+                (point2[0]-point3[0])**2+
+                (point2[1]-point3[1])**2+
+                (point2[2]-point3[2])**2
+            )
+            self.edge_length[point3_idx][point2_idx] = self.edge_length[point2_idx][point3_idx]
+        return
+    
+    @timer
+    def filter_gaussian_curvature(self):
+        # 尋找高斯曲率過大的點
+        for vertex_idx in range(self.num_vertices):
+            if self.gaussian_curvature[vertex_idx] > self.gaussian_curvature_limit:
+                self.high_curvature_points = np.append(
+                    self.high_curvature_points, vertex_idx)
+        # print("self.high_curvature_points",np.size(self.high_curvature_points))
+        self.high_curvature_graph = [dict() for i in range(np.size(self.high_curvature_points))]
+        for i in range(np.size(self.high_curvature_points)):
+            for j in range(i):
+                point1_idx = self.high_curvature_points[i]
+                point2_idx = self.high_curvature_points[j]
+                
+                if point2_idx in self.edge_length[point1_idx]:
+                    self.high_curvature_graph[i][j] = (
+                        self.gaussian_curvature[point1_idx] + self.gaussian_curvature[point2_idx]) / 2.0
+                    self.high_curvature_graph[j][i] = self.high_curvature_graph[i][j]
+        return
+    
+    @timer
     def find_connect(self):
         for triangle_idx in range(np.size(self.triangles, axis=0)):
             if self.connect[self.triangles[triangle_idx, 0],
@@ -379,7 +382,8 @@ class TriangleMesh:
                          self.triangles[triangle_idx, 0], 0] = self.triangles[triangle_idx, 1]
             self.connect[self.triangles[triangle_idx, 2],
                          self.triangles[triangle_idx, 0], 1] = triangle_idx
-
+        return
+    
     def cut_edge(self, vertex_idx1, vertex_idx2, vertex_idx3):
         '''
         vertex_idx1往vertex_idx2切割
@@ -389,24 +393,22 @@ class TriangleMesh:
         is_added1 = False
         is_added2 = False
         for added_idx in range(self.num_original_vertices, self.num_vertices):
-            if (self.vertices[vertex_idx1, :] == self.vertices[added_idx, :]).all():
+            if (self.vertices[vertex_idx1] == self.vertices[added_idx]):
                 vertex_add_idx1 = added_idx
                 is_added1 = True
 
-            if (self.vertices[vertex_idx2, :] == self.vertices[added_idx, :]).all():
+            if (self.vertices[vertex_idx2] == self.vertices[added_idx]):
                 vertex_add_idx2 = added_idx
                 is_added2 = True
 
         if is_added1 == False:
             vertex_add_idx1 = self.num_vertices
-            self.vertices = np.append(
-                self.vertices, [self.vertices[vertex_idx1, :]], axis=0)
-            self.num_vertices = np.size(self.vertices, axis=0)
+            self.vertices.append(self.vertices[vertex_idx1])
+            self.num_vertices = len(self.vertices)
         if is_added2 == False:
             vertex_add_idx2 = self.num_vertices
-            self.vertices = np.append(
-                self.vertices, [self.vertices[vertex_idx2, :]], axis=0)
-            self.num_vertices = np.size(self.vertices, axis=0)
+            self.vertices.append(self.vertices[vertex_idx2])
+            self.num_vertices = len(self.vertices)
         triangle_idx = self.connect[vertex_idx1, vertex_idx2, 1]
         if self.triangles[triangle_idx, 0] == vertex_idx1:
             if self.triangles[triangle_idx, 1] == vertex_idx2:
@@ -474,7 +476,7 @@ class TriangleMesh:
                         point1_idx = self.connect[point1_idx, point2_idx, 0]
                         point3_idx = self.connect[point1_idx, point2_idx, 0]
                 
-        self.num_vertices = np.size(self.vertices, axis=0)
+        self.num_vertices = len(self.vertices)
         return vertex_add_idx1
     
     def find_start_edges(self,surface_group):
@@ -486,36 +488,42 @@ class TriangleMesh:
                     c =1
                     break
             if c==1: break
+        return
 
+    @timer
     def calculate_area(self):
         for triangle_idx in range(np.size(self.triangles, axis=0)):
-            v1 = self.vertices[self.triangles[triangle_idx, 0], :]
-            v2 = self.vertices[self.triangles[triangle_idx, 1], :]
-            v3 = self.vertices[self.triangles[triangle_idx, 2], :]
+            v1 = np.array(self.vertices[self.triangles[triangle_idx, 0]],dtype=float)
+            v2 = np.array(self.vertices[self.triangles[triangle_idx, 1]],dtype=float)
+            v3 = np.array(self.vertices[self.triangles[triangle_idx, 2]],dtype=float)
             cross_product = np.cross(v2 - v1, v3 - v1)
             self.area[triangle_idx] = 0.5 * np.linalg.norm(cross_product)
+        return
 
+    @timer
     def calculate_angle(self):
         for triangle_idx in range(np.size(self.triangles, axis=0)):
             for point in range(3):
                 point1_idx = self.triangles[triangle_idx, (point+1) % 3]
                 point2_idx = self.triangles[triangle_idx, point]
                 point3_idx = self.triangles[triangle_idx, (point+2) % 3]
-                point1 = self.vertices[point1_idx, :]
-                point2 = self.vertices[point2_idx, :]
-                point3 = self.vertices[point3_idx, :]
+                point1 = np.array(self.vertices[point1_idx],dtype=float)
+                point2 = np.array(self.vertices[point2_idx],dtype=float)
+                point3 = np.array(self.vertices[point3_idx],dtype=float)
                 v1 = point1 - point2
                 v2 = point3 - point2
                 dot_product = np.dot(v1, v2)
                 magnitude_v1 = np.linalg.norm(v1)
                 magnitude_v2 = np.linalg.norm(v2)
                 cos_theta = dot_product / (magnitude_v1 * magnitude_v2)
-                self.angle[point1_idx, point2_idx,
+                self.angle[point2_idx][point1_idx,
                            point3_idx] = np.arccos(cos_theta)
-                self.angle[point3_idx, point2_idx,
+                self.angle[point2_idx][point3_idx,
                            point1_idx] = np.arccos(cos_theta)
-
+        return
+    
     # @profile
+    @timer
     def calculate_gaussian_curvature(self):
 
         for vertex_idx in range(self.num_vertices):
@@ -523,7 +531,7 @@ class TriangleMesh:
             for triangle_idx in self.point_triangle_adj[vertex_idx]:
                 a_vertex += self.area[triangle_idx]
 
-            angles = self.angle[:, vertex_idx, :]
+            angles = self.angle[vertex_idx]
             sum_theta = 0
             for triangle_idx in self.point_triangle_adj[vertex_idx]:
                 if self.triangles[triangle_idx][0] == vertex_idx:
@@ -541,24 +549,24 @@ class TriangleMesh:
             # if self.gaussian_curvature[vertex_idx] > 0.01:
             # print(
             #   self.gaussian_curvature[vertex_idx], self.vertices[vertex_idx, :])
-
-##recursion --> must change
+        return
+    
+## recursion --> must change
     def find_max_cycle_cost_helper(self, graph, start_node, current_node, visited, current_cost, max_cost, path, max_path):
         visited[current_node] = True
         path.append(current_node)
         #print("find_max_cycle_cost_helper")
 
-        for neighbor in range(len(graph)):
-            if graph[current_node, neighbor] != -1:  # Check if there is an edge
-                if not visited[neighbor]:
-                    #print(neighbor)
-                    max_cost, max_path = self.find_max_cycle_cost_helper(
-                        graph, start_node, neighbor, visited, current_cost + graph[current_node, neighbor], max_cost, path, max_path)
-                elif neighbor == start_node:  # Found a cycle
-                    #print(neighbor)
-                    if current_cost + graph[current_node, neighbor] > max_cost:
-                        max_cost = current_cost + graph[current_node, neighbor]
-                        max_path = path.copy()
+        for neighbor in graph[current_node]:
+            if not visited[neighbor]:
+                #print(neighbor)
+                max_cost, max_path = self.find_max_cycle_cost_helper(
+                    graph, start_node, neighbor, visited, current_cost + graph[current_node][neighbor], max_cost, path, max_path)
+            elif neighbor == start_node:  # Found a cycle
+                #print(neighbor)
+                if current_cost + graph[current_node][neighbor] > max_cost:
+                    max_cost = current_cost + graph[current_node][neighbor]
+                    max_path = path.copy()
 
         visited[current_node] = False
         path.pop()
@@ -566,11 +574,12 @@ class TriangleMesh:
         return max_cost, max_path
 
     def find_max_cycle_cost(self, graph):
-        num_nodes = graph.shape[0]
+        num_nodes = max(graph.keys())+1  #base 0
         max_cost = float('-inf')
         max_path = []
-        for start_node in range(num_nodes): #
-            visited = np.zeros(num_nodes, dtype=bool)
+        for start_node in graph: #
+            visited = [False for _ in range(num_nodes)]
+            #visited = np.zeros(num_nodes, dtype=bool)
             #print("find_max_cycle_cost_helper")
             cycle_cost, cycle_path = self.find_max_cycle_cost_helper(
                 graph, start_node, start_node, visited, 0, max_cost, [], [])
@@ -585,9 +594,10 @@ class TriangleMesh:
         visited[start] = True
         component.append(start)
 
-        for neighbor, weight in enumerate(graph[start]):
-            if weight > 0 and not visited[neighbor]:
+        for neighbor, weight in graph[start].items():
+            if not visited[neighbor]:
                 self.dfs(graph, neighbor, visited, component)
+        return
 
     def connected_components(self, graph):
         n = len(graph)
@@ -602,17 +612,23 @@ class TriangleMesh:
 
         return components
 
+## graph had been changed to dict
     def separate_disconnected_components(self, graph):
         components = self.connected_components(graph)
 
         # Create separate graphs for each connected component
         separated_graphs = []
         for component in components:
-            separated_graph = np.full_like(graph, -1, dtype=float)
+            separated_graph = dict() #key: idx1, value: dict()-->key:idx2, value:weight
             for node in component:
-                for neighbor, weight in enumerate(graph[node]):
+                for neighbor, weight in graph[node].items():
                     if neighbor in component:
+                        if(node not in separated_graph):
+                            separated_graph[node]=dict()
                         separated_graph[node][neighbor] = weight
+
+                        if(neighbor not in separated_graph):
+                            separated_graph[neighbor] = dict()
                         separated_graph[neighbor][node] = weight
             separated_graphs.append(separated_graph)
 
@@ -658,6 +674,7 @@ class TriangleMesh:
             current_node = predecessors[current_node]
 
         return path, distances[end]  # 返回最短路徑的節點序列和路徑長度
+
     def find_cut_path1(self, graph,start_nodes, end_nodes):
         shortest_distance = float('inf')
         shortest_path = []
@@ -737,18 +754,18 @@ class TriangleMesh:
         return shortest_path
 
     def plot_graph(self,high_curvature_graph):
+        if(self.nograph):
+            return
         x_data, y_data, z_data = [], [], []
-        for i in range(np.size(high_curvature_graph, axis=0)):
-            for j in range(np.size(high_curvature_graph, axis=1)):
-                if high_curvature_graph[i][j] != -1:
-                    point1_idx = self.high_curvature_points[i]
-                    x_data.append(
-                        self.vertices[point1_idx, 0])
-                    y_data.append(
-                        self.vertices[point1_idx, 1])
-                    z_data.append(
-                        self.vertices[point1_idx, 2])
-                    #print(point1_idx)
+        for i in high_curvature_graph:
+            point1_idx = self.high_curvature_points[i]
+            x_data.append(
+                self.vertices[point1_idx][0])
+            y_data.append(
+                self.vertices[point1_idx][1])
+            z_data.append(
+                self.vertices[point1_idx][2])
+            #print(point1_idx)
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
         ax.scatter(x_data, y_data, z_data, c='blue',
@@ -760,19 +777,19 @@ class TriangleMesh:
         ax.set_zlabel('Z 軸')
         ax.axis('equal')
         plt.show()
+        return
+
     def plot_points_graph(self,high_curvature_graph):
         x_data, y_data, z_data = [], [], []
-        for i in range(np.size(high_curvature_graph, axis=0)):
-            for j in range(np.size(high_curvature_graph, axis=1)):
-                if high_curvature_graph[i][j] != -1:
-                    point1_idx = i
-                    x_data.append(
-                        self.vertices[point1_idx, 0])
-                    y_data.append(
-                        self.vertices[point1_idx, 1])
-                    z_data.append(
-                        self.vertices[point1_idx, 2])
-                    #print(point1_idx)
+        for i in high_curvature_graph:
+            point1_idx = i
+            x_data.append(
+                self.vertices[point1_idx][0])
+            y_data.append(
+                self.vertices[point1_idx][1])
+            z_data.append(
+                self.vertices[point1_idx][2])
+            #print(point1_idx)
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
         ax.scatter(x_data, y_data, z_data, c='blue',
@@ -784,15 +801,17 @@ class TriangleMesh:
         ax.set_zlabel('Z 軸')
         ax.axis('equal')
         plt.show()
+        return
+    
     def plot_points(self,points):
         x_data, y_data, z_data = [], [], []
         for point_idx in points:
             x_data.append(
-                self.vertices[self.high_curvature_points[point_idx], 0])
+                self.vertices[self.high_curvature_points[point_idx]][0])
             y_data.append(
-                self.vertices[self.high_curvature_points[point_idx], 1])
+                self.vertices[self.high_curvature_points[point_idx]][1])
             z_data.append(
-                self.vertices[self.high_curvature_points[point_idx], 2])
+                self.vertices[self.high_curvature_points[point_idx]][2])
             #print(point_idx)
         #print("x_data",len(x_data))
         fig = plt.figure()
@@ -806,6 +825,8 @@ class TriangleMesh:
         ax.set_zlabel('Z 軸')
         ax.axis('equal')
         plt.show()
+        return
 
 if __name__ == "__main__":
     mesh = TriangleMesh('inclined_cylinder.stl')
+    #mesh = TriangleMesh('cylinder.stl')
