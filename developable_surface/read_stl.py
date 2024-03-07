@@ -7,7 +7,7 @@ import heapq
 import time
 from memory_profiler import profile
 import heapq
-from functools import cmp_to_key
+from itertools import combinations,product
 #from tools import *
 
 count_time = True
@@ -140,7 +140,7 @@ class TriangleMesh:
     @timer
     def __init__(self, stl_file):
         self.gaussian_curvature_limit = 0.0001
-        self.nograph = True
+        self.nograph = False
 
         self._current_node_ = -1 #for sorting
         self._current_node_info_ = {'current':self._current_node_} #for sorting, dp
@@ -193,9 +193,9 @@ class TriangleMesh:
         st = time.time()
 
         # 計算高斯曲率
-        self.gaussian_curvature = np.zeros(self.num_vertices, dtype=float)
-        self.high_curvature_graph = [] # 2d list --> key: point index, value: dict --> key: point index, value: curvature(index,key)
-        self.high_curvature_points = np.full(0, -1, dtype=int)
+        self.gaussian_curvature = [0 for _ in range(self.num_vertices)]
+        self.high_curvature_graph = dict() # 2d list --> key: point index, value: dict --> key: point index, value: curvature(index,key)
+        self.high_curvature_points = []
         self.calculate_gaussian_curvature()
         # 尋找高斯曲率過大的點
         self.filter_gaussian_curvature()
@@ -207,9 +207,7 @@ class TriangleMesh:
 ## 是這樣註解嗎
         # 分離高曲率點
         high_curvature_subgraph = self.separate_disconnected_components(
-            self.high_curvature_graph)
-        # print("high_curvature_subgraph",high_curvature_subgraph)
-        
+            self.high_curvature_graph) # 2d list, each element is a subgraph(dict)        
         print(time.time()-st)
 
         self.plot_graph(high_curvature_subgraph[0])
@@ -331,18 +329,16 @@ class TriangleMesh:
             self.boundaries.append(max_cycle_path)
             #self.plot_points(max_cycle_path)
             add_cycle = []
-            for point in range(np.size(max_cycle_path)):
-                # print(max_cycle_path[point % np.size(
-                #    max_cycle_path)], max_cycle_path[(point+1) % np.size(max_cycle_path)])
-                if len(max_cycle_path)>2:
-                    #print(point==0)
-                    add_point = self.cut_edge(self.high_curvature_points[max_cycle_path[point % np.size(
-                        max_cycle_path)]], self.high_curvature_points[max_cycle_path[(point+1) % np.size(max_cycle_path)]], self.high_curvature_points[max_cycle_path[(point+2) % np.size(max_cycle_path)]])
-                    add_cycle.append(add_point)
+            if(len(max_cycle_path)>2):
+                max_cycle_path.append(max_cycle_path[0])
+                max_cycle_path.append(max_cycle_path[1])
+            for point in range(2,len(max_cycle_path)):
+                add_point = self.cut_edge(max_cycle_path[point-2], max_cycle_path[point-1], max_cycle_path[point])
+                add_cycle.append(add_point)
             self.boundaries.append(add_cycle)
             # print(high_curvature_subgraph[subgraph][:][:])
         return
-    
+
     @timer
     def calculate_length(self):
         self.edge_length.extend([dict() for _ in range(self.num_vertices-len(self.edge_length) )])
@@ -377,21 +373,18 @@ class TriangleMesh:
     @timer
     def filter_gaussian_curvature(self):
         # 尋找高斯曲率過大的點
-        for vertex_idx in range(self.num_vertices):
-            if self.gaussian_curvature[vertex_idx] > self.gaussian_curvature_limit:
-                self.high_curvature_points = np.append(
-                    self.high_curvature_points, vertex_idx)
-        # print("self.high_curvature_points",np.size(self.high_curvature_points))
-        self.high_curvature_graph = [dict() for i in range(np.size(self.high_curvature_points))]
-        for i in range(np.size(self.high_curvature_points)):
-            for j in range(i):
-                point1_idx = self.high_curvature_points[i]
-                point2_idx = self.high_curvature_points[j]
-                
-                if point2_idx in self.edge_length[point1_idx]:
-                    self.high_curvature_graph[i][j] = (
-                        self.gaussian_curvature[point1_idx] + self.gaussian_curvature[point2_idx]) / 2.0
-                    self.high_curvature_graph[j][i] = self.high_curvature_graph[i][j]
+        self.high_curvature_points = [idx for idx,v in enumerate(self.gaussian_curvature) if v>self.gaussian_curvature_limit]
+        self.high_curvature_graph = {p:dict() for p in self.high_curvature_points}
+
+        for p1,p2 in combinations(self.high_curvature_points,2):
+            if(p2 in self.edge_length[p1]):
+                self.high_curvature_graph[p1][p2] = (self.gaussian_curvature[p1]+self.gaussian_curvature[p2])/2.0
+                self.high_curvature_graph[p2][p1] = self.high_curvature_graph[p1][p2]        
+        for k in self.high_curvature_graph:
+            if(len(self.high_curvature_graph[k])==0):
+                print("delete",k)
+                del self.high_curvature_graph[k]
+        
         return
     
     @timer
@@ -677,11 +670,15 @@ class TriangleMesh:
         print(point1,point2,result)
         return result
     
-    def plot(self,graph,label=1,edge=1,enable=1):
+    def plot(self,graph,label=1,edge=1,enable=1,highlight=[]):
         if(enable==0):
             return
+        if(highlight!=[]):
+            highlight.append(highlight[0])
         fig = plt.figure()
         ax = fig.add_subplot(111,projection='3d')
+        
+
         for p1, p2s in graph.items():
             # draw point
             ax.scatter(self.vertices[p1][0], self.vertices[p1][1], self.vertices[p1][2], color='red', marker='o',s = 1)
@@ -691,7 +688,10 @@ class TriangleMesh:
             for p2, draw_edge in p2s.items():
                 if edge==1 and draw_edge == True:
                     #draw edge from p1 to p2
-                    ax.plot([self.vertices[p1][0], self.vertices[p2][0]], [self.vertices[p1][1], self.vertices[p2][1]],[self.vertices[p1][2], self.vertices[p2][2]], color='blue', linestyle='-', linewidth=2)
+                    if(abs(highlight.index(p1)-highlight.index(p2))==1):
+                        ax.plot([self.vertices[p1][0], self.vertices[p2][0]], [self.vertices[p1][1], self.vertices[p2][1]],[self.vertices[p1][2], self.vertices[p2][2]], color='green', linestyle='-', linewidth=2)
+                    else:
+                        ax.plot([self.vertices[p1][0], self.vertices[p2][0]], [self.vertices[p1][1], self.vertices[p2][1]],[self.vertices[p1][2], self.vertices[p2][2]], color='blue', linestyle='-', linewidth=2)
         plt.axis('equal')
         # 添加標籤和標題
         ax.set_xlabel('X-axis')
@@ -713,7 +713,9 @@ class TriangleMesh:
                     if(j<15):
                         tmp[i][j] = enabled_edges[i][j]
         """
-        self.plot(enabled_edges,label=0,edge=1,enable=1)
+        high = [474, 485, 499, 505, 510, 506, 500, 486, 476, 459, 437, 417, 392, 370, 339, 306, 275, 241, 213, 182, 146, 111, 75, 52, 37, 16, 11, 7, 5, 3, 1, 0, 2, 4, 6, 9, 14, 35, 50, 71, 107, 142, 178, 209, 237, 271, 302, 335, 366, 390, 415, 435, 457]
+
+        self.plot(enabled_edges,label=0,edge=1,enable=1,highlight=high)
         #circles_in_func = []
         circles = []
         cnt = len([1 for i in enabled_edges.values() for j in i.values() if j]) #remaining edges(*2)
@@ -722,12 +724,8 @@ class TriangleMesh:
             flag=0
             if (start_node == None or list(enabled_edges[start_node].values()) == [False for _ in range(len(enabled_edges[start_node]))]):
                 for i in enabled_edges:
-                    for j in enabled_edges[i]:
-                        if enabled_edges[i][j]:
-                            start_node = i
-                            flag=1
-                            break
-                    if flag==1:
+                    if(sum(enabled_edges[i].values())>0):
+                        start_node = i
                         break
             assert(start_node != -1)
 
@@ -826,11 +824,10 @@ class TriangleMesh:
         return
 
     def connected_components(self, graph):
-        n = len(graph)
-        visited = np.zeros(n, dtype=bool)
+        visited = {i: False for i in graph.keys()}
         components = []
 
-        for node in range(n):
+        for node in graph.keys():
             if not visited[node]:
                 component = []
                 self.dfs(graph, node, visited, component)
@@ -838,9 +835,8 @@ class TriangleMesh:
 
         return components
 
-## graph had been changed to dict
     def separate_disconnected_components(self, graph):
-        components = self.connected_components(graph)
+        components = self.connected_components(graph) #2d list, each list is a component(point_idx)
 
         # Create separate graphs for each connected component
         separated_graphs = []
@@ -983,14 +979,13 @@ class TriangleMesh:
         if(self.nograph):
             return
         x_data, y_data, z_data = [], [], []
-        for i in high_curvature_graph:
-            point1_idx = self.high_curvature_points[i]
+        for idx in high_curvature_graph:
             x_data.append(
-                self.vertices[point1_idx][0])
+                self.vertices[idx][0])
             y_data.append(
-                self.vertices[point1_idx][1])
+                self.vertices[idx][1])
             z_data.append(
-                self.vertices[point1_idx][2])
+                self.vertices[idx][2])
             #print(point1_idx)
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
@@ -1032,13 +1027,12 @@ class TriangleMesh:
     def plot_points(self,points):
         x_data, y_data, z_data = [], [], []
         for point_idx in points:
-            print(point_idx,":",self.vertices[self.high_curvature_points[point_idx]])
             x_data.append(
-                self.vertices[self.high_curvature_points[point_idx]][0])
+                self.vertices[point_idx][0])
             y_data.append(
-                self.vertices[self.high_curvature_points[point_idx]][1])
+                self.vertices[point_idx][1])
             z_data.append(
-                self.vertices[self.high_curvature_points[point_idx]][2])
+                self.vertices[point_idx][2])
             #print(point_idx)
         #print("x_data",len(x_data))
         fig = plt.figure()
