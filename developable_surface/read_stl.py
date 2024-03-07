@@ -7,16 +7,20 @@ import heapq
 import time
 from memory_profiler import profile
 import heapq
+from functools import cmp_to_key
 #from tools import *
-count_time = False
+
+count_time = True
 #wrapper for counting time
 def timer(func):
     def wrapper(*args, **kwargs):
-        start = time.time()
-        result = func(*args, **kwargs)
-        if count_time == True:
-            print(func.__name__, ":", time.time()-start)
-        return result
+        if(count_time):
+            start = time.time()
+            result = func(*args, **kwargs)
+            print("/--",func.__name__, ":", time.time()-start)
+            return result
+        else:
+            return func(*args, **kwargs)
     return wrapper
 
 class Point:
@@ -45,6 +49,34 @@ class Point:
             return self.y < other.y
         else:
             return self.z < other.z
+
+class SpaceCoor:
+    def __init__(self, r, theta, phi,index):
+        self.r = r
+        self.theta = theta
+        self.phi = phi
+        self.index = index
+    def __eq__(self, other):
+        return self.r == other.r and self.theta == other.theta and self.phi == other.phi
+    def __gt__(self, other):
+        if self.theta != other.theta:
+            return self.theta > other.theta
+        elif self.phi != other.phi:
+            return self.phi < other.phi
+        elif self.r != other.r:
+            return self.r > other.r
+        else:
+            return self.index > other.index
+        
+    def __lt__(self, other):
+        if self.theta != other.theta:
+            return self.theta < other.theta
+        elif self.phi != other.phi:
+            return self.phi > other.phi
+        elif self.r != other.r:
+            return self.r < other.r
+        else:
+            return self.index < other.index
 
 class AStarNode:
     def __init__(self, index, neighbor,endPoint,coors):
@@ -109,6 +141,9 @@ class TriangleMesh:
     def __init__(self, stl_file):
         self.gaussian_curvature_limit = 0.0001
         self.nograph = True
+
+        self._current_node_ = -1 #for sorting
+        self._current_node_info_ = {'current':self._current_node_} #for sorting, dp
 
         self.stl = stl_file
         stl = Mesh.from_file(self.stl)
@@ -291,7 +326,7 @@ class TriangleMesh:
     def process_cut(self, high_curvature_subgraph):
         for subgraph in high_curvature_subgraph:
             #print("find_max_cycle_cost")
-            max_cycle_cost, max_cycle_path = self.find_max_cycle_cost(
+            max_cycle_path = self.find_max_cycle_cost(
                 subgraph)
             self.boundaries.append(max_cycle_path)
             #self.plot_points(max_cycle_path)
@@ -386,6 +421,10 @@ class TriangleMesh:
         return
     
     def cartesian_to_spherical(self,start_idx,end_idx):
+        assert(start_idx == self._current_node_info_['current'])
+        if (end_idx in self._current_node_info_):
+            return self.vertices[end_idx]
+
         x1 = self.vertices[start_idx][0]
         y1 = self.vertices[start_idx][1]
         z1 = self.vertices[start_idx][2]
@@ -396,9 +435,15 @@ class TriangleMesh:
         y = y2-y1
         z = z2-z1
         r = math.sqrt(x**2 + y**2 + z**2)
-        theta = math.acos(z / r)
-        phi = math.atan2(y, x)
-        return [r, theta, phi]
+        xy = math.sqrt(x**2 + y**2)
+        theta = math.degrees(math.atan2(z,xy))
+        #theta = math.acos(z / r)
+        phi = math.degrees(math.atan2(y, x))
+        if(phi<0):
+            phi+=360
+        self._current_node_info_[end_idx] = SpaceCoor(r,z,phi,end_idx)
+        return self._current_node_info_[end_idx]
+    
     def cut_edge(self, vertex_idx1, vertex_idx2, vertex_idx3):
         '''
         vertex_idx1往vertex_idx2切割
@@ -588,7 +633,7 @@ class TriangleMesh:
 
         return max_cost, max_path
 
-    def find_max_cycle_cost(self, graph):
+    def find_max_cycle_cost1(self, graph):
         num_nodes = max(graph.keys())+1  #base 0
         max_cost = float('-inf')
         max_path = []
@@ -604,6 +649,172 @@ class TriangleMesh:
                 max_path = cycle_path
 
         return max_cost, max_path
+
+    def right_hand(self, point1, point2):
+        assert(self._current_node_ == self._current_node_info_['current'])
+        
+        p1,p2 =0,0 #placeholder
+        if(point1 in self._current_node_info_):
+            p1 = self._current_node_info_[point1]
+        else:
+            p1 = self.cartesian_to_spherical(self._current_node_info_['current'],point1)
+            self._current_node_info_[point1] = p1
+        if(point2 in self._current_node_info_):
+            p2 = self._current_node_info_[point2]
+        else:
+            p2 = self.cartesian_to_spherical(self._current_node_info_['current'],point2)
+            self._current_node_info_[point2] = p2
+        
+        #compare  (r,theta,phi)
+        if(p1[1]!=p2[1]):
+            result=p1[1]<p2[1]
+        elif(p1[2]!=p2[2]):
+            result=p1[2]<p2[2]
+        elif(p1[0]!=p2[0]):
+            result=p1[0]<p2[0]
+        else:
+            result=point1<point2
+        print(point1,point2,result)
+        return result
+    
+    def plot(self,graph,label=1,edge=1,enable=1):
+        if(enable==0):
+            return
+        fig = plt.figure()
+        ax = fig.add_subplot(111,projection='3d')
+        for p1, p2s in graph.items():
+            # draw point
+            ax.scatter(self.vertices[p1][0], self.vertices[p1][1], self.vertices[p1][2], color='red', marker='o',s = 1)
+            # draw label
+            if(label==1):
+                ax.text(self.vertices[p1][0], self.vertices[p1][1], self.vertices[p1][2], str(p1), color='black', fontsize=12)
+            for p2, draw_edge in p2s.items():
+                if edge==1 and draw_edge == True:
+                    #draw edge from p1 to p2
+                    ax.plot([self.vertices[p1][0], self.vertices[p2][0]], [self.vertices[p1][1], self.vertices[p2][1]],[self.vertices[p1][2], self.vertices[p2][2]], color='blue', linestyle='-', linewidth=2)
+        plt.axis('equal')
+        # 添加標籤和標題
+        ax.set_xlabel('X-axis')
+        ax.set_ylabel('Y-axis')
+        ax.set_zlabel('Z-axis')
+
+        # 顯示圖形
+        plt.show()
+
+
+
+    def find_max_cycle_cost2(self, graph, circles, enabled_edges,start_node=None):
+        """
+        tmp = dict()
+        for i in enabled_edges.keys():
+            if(i<15):
+                tmp[i] = dict()
+                for j in enabled_edges[i]:
+                    if(j<15):
+                        tmp[i][j] = enabled_edges[i][j]
+        """
+        self.plot(enabled_edges,label=0,edge=1,enable=1)
+        #circles_in_func = []
+        circles = []
+        cnt = len([1 for i in enabled_edges.values() for j in i.values() if j]) #remaining edges(*2)
+        while cnt > 0:
+            #find first edge is enabled
+            flag=0
+            if (start_node == None or list(enabled_edges[start_node].values()) == [False for _ in range(len(enabled_edges[start_node]))]):
+                for i in enabled_edges:
+                    for j in enabled_edges[i]:
+                        if enabled_edges[i][j]:
+                            start_node = i
+                            flag=1
+                            break
+                    if flag==1:
+                        break
+            assert(start_node != -1)
+
+            #right hand rule
+            ### sort by (phi_1!=phi_2 ? phi_1<phi_2 : (theta_1!=theta_2 ? theta_1 < theta_2 : (r_1 != r_2 ? r_1 < r_2 : idx1 < idx2)))
+            current_node = start_node
+            self._current_node_ = current_node
+            self._current_node_info_['current'] = current_node
+            edge_stack = []
+            point_stack = [start_node] #possible circle
+            circle=[]
+            while(1):
+                neighbor = [n for n in enabled_edges[current_node] if enabled_edges[current_node][n]]
+                neighbor_info = [self.cartesian_to_spherical(current_node,n) for n in neighbor]
+                neighbor_info.sort(reverse=1)
+                neighbor = [n.index for n in neighbor_info]
+
+                if(len(neighbor)==0):
+                    break
+                
+                if(len(edge_stack)>0 and (neighbor[0],current_node) == edge_stack[-1]):
+                    #dirty branch edge
+                    enabled_edges[current_node][neighbor[0]] = False
+                    enabled_edges[neighbor[0]][current_node] = False
+                    edge_stack.pop()
+                    point_stack.pop()
+                    current_node = point_stack[-1]
+                    self._current_node_ = current_node
+                    self._current_node_info_ = dict()
+                    self._current_node_info_['current'] = current_node
+                    continue
+                
+                if(neighbor[0] == point_stack[0]):
+                    #find a circle
+                    circle = point_stack[:]
+                    #disable edges
+                    for i in range(len(circle)-1):
+                        enabled_edges[circle[i]][circle[(i+1)%len(circle)]] = False
+                        enabled_edges[circle[(i+1)%len(circle)]][circle[i]] = False
+                    enabled_edges[circle[-1]][circle[0]] = False
+                    enabled_edges[circle[0]][circle[-1]] = False
+                    break
+                
+                if(neighbor[0] in point_stack):
+                    #possible circle
+                    current_node = neighbor[0]
+                    self._current_node_ = current_node
+                    self._current_node_info_ = dict()
+                    self._current_node_info_['current'] = current_node
+                    point_stack = [current_node]
+                    edge_stack = []
+                    continue
+                    
+
+                #normal edge
+                edge_stack.append((current_node,neighbor[0]))
+                point_stack.append(neighbor[0])
+                current_node = neighbor[0]
+                self._current_node_ = current_node
+                self._current_node_info_ = dict()
+                self._current_node_info_['current'] = current_node
+
+            cnt = len([1 for i in enabled_edges.values() for j in i.values() if j]) #remaining edges(*2)
+        assert(cnt==0)
+        return
+
+    def find_max_cycle_cost_wrapper(self, graph):
+        #self.plot_points([0,1,2,3,4,5])
+        #self.plot(graph)
+        circles=[]
+        enabled_edges = dict()
+        for i in graph:
+            tmp = dict()
+            for j in graph[i]:
+                tmp[j] = True
+            enabled_edges[i] = tmp
+        self.find_max_cycle_cost2(graph, circles, enabled_edges)
+        #assert(len(circles)==1)
+        for c in circles:
+            self.plot_points(c)
+        return
+    
+## test p8 at here
+    def find_max_cycle_cost(self, graph): #help testing
+        #return self.find_max_cycle_cost1(graph)
+        return self.find_max_cycle_cost_wrapper(graph)
+    
 
     def dfs(self, graph, start, visited, component):
         visited[start] = True
@@ -821,6 +1032,7 @@ class TriangleMesh:
     def plot_points(self,points):
         x_data, y_data, z_data = [], [], []
         for point_idx in points:
+            print(point_idx,":",self.vertices[self.high_curvature_points[point_idx]])
             x_data.append(
                 self.vertices[self.high_curvature_points[point_idx]][0])
             y_data.append(
