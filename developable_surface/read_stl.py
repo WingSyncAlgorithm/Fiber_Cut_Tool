@@ -14,10 +14,10 @@ def timer(func):
     def wrapper(*args, **kwargs):
         start = time.time()
         result = func(*args, **kwargs)
-        print(func.__name__, ":", time.time()-start)
+        if count_time == True:
+            print(func.__name__, ":", time.time()-start)
         return result
-    if count_time == True:
-        return wrapper
+    return wrapper
 
 class Point:
     def __init__(self, x, y, z, triangle_idx, p_idx):
