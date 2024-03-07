@@ -168,7 +168,7 @@ class TriangleMesh:
         st = time.time()
 
         # 初始化self.edge_length
-        self.edge_length = [dict() for i in range(self.num_vertices)] #儲存每個點到其他點的距離
+        self.edge_length = {i:dict() for i in range(self.num_vertices)} #儲存每個點到其他點的距離
         ### self.edge_length: 2d list --> index: point index, value: dict --> key: point index, value: distance(index,key)
         self.calculate_length()
 
@@ -268,8 +268,7 @@ class TriangleMesh:
         st = time.time()
                         
 
-        self.angle = np.zeros(
-            (self.num_vertices, self.num_vertices, self.num_vertices), dtype=float)
+        self.angle = [dict() for i in range(self.num_vertices)]
         self.calculate_angle()
         # 初始化儲存展開到平面的點的矩陣
         self.s = np.full((self.num_vertices, 2), 99999999, dtype=float)
@@ -281,7 +280,7 @@ class TriangleMesh:
         print(time.time()-st)
         print('p11')
         st = time.time()
-        surface_groups = self.separate_disconnected_components(self.length)
+        surface_groups = self.separate_disconnected_components(self.edge_length)
         for i in range(np.size(surface_groups, axis=0)):
             print(i)
             self.find_start_edges(surface_groups[i])
@@ -341,8 +340,7 @@ class TriangleMesh:
 
     @timer
     def calculate_length(self):
-        self.edge_length.extend([dict() for _ in range(self.num_vertices-len(self.edge_length) )])
-        
+        self.edge_length = {i:dict() for i in range(self.num_vertices)}
         for triangle_idx in range(np.size(self.triangles, axis=0)):
             point1_idx = self.triangles[triangle_idx, 0]
             point2_idx = self.triangles[triangle_idx, 1]
@@ -626,7 +624,7 @@ class TriangleMesh:
 
         return max_cost, max_path
 
-    def find_max_cycle_cost1(self, graph):
+    def find_max_cycle_cost(self, graph):
         num_nodes = max(graph.keys())+1  #base 0
         max_cost = float('-inf')
         max_path = []
@@ -643,33 +641,6 @@ class TriangleMesh:
 
         return max_cost, max_path
 
-    def right_hand(self, point1, point2):
-        assert(self._current_node_ == self._current_node_info_['current'])
-        
-        p1,p2 =0,0 #placeholder
-        if(point1 in self._current_node_info_):
-            p1 = self._current_node_info_[point1]
-        else:
-            p1 = self.cartesian_to_spherical(self._current_node_info_['current'],point1)
-            self._current_node_info_[point1] = p1
-        if(point2 in self._current_node_info_):
-            p2 = self._current_node_info_[point2]
-        else:
-            p2 = self.cartesian_to_spherical(self._current_node_info_['current'],point2)
-            self._current_node_info_[point2] = p2
-        
-        #compare  (r,theta,phi)
-        if(p1[1]!=p2[1]):
-            result=p1[1]<p2[1]
-        elif(p1[2]!=p2[2]):
-            result=p1[2]<p2[2]
-        elif(p1[0]!=p2[0]):
-            result=p1[0]<p2[0]
-        else:
-            result=point1<point2
-        print(point1,point2,result)
-        return result
-    
     def plot(self,graph,label=1,edge=1,enable=1,highlight=[]):
         if(enable==0):
             return
@@ -700,9 +671,34 @@ class TriangleMesh:
 
         # 顯示圖形
         plt.show()
-
-
-
+    '''
+    def right_hand(self, point1, point2):
+        assert(self._current_node_ == self._current_node_info_['current'])
+        
+        p1,p2 =0,0 #placeholder
+        if(point1 in self._current_node_info_):
+            p1 = self._current_node_info_[point1]
+        else:
+            p1 = self.cartesian_to_spherical(self._current_node_info_['current'],point1)
+            self._current_node_info_[point1] = p1
+        if(point2 in self._current_node_info_):
+            p2 = self._current_node_info_[point2]
+        else:
+            p2 = self.cartesian_to_spherical(self._current_node_info_['current'],point2)
+            self._current_node_info_[point2] = p2
+        
+        #compare  (r,theta,phi)
+        if(p1[1]!=p2[1]):
+            result=p1[1]<p2[1]
+        elif(p1[2]!=p2[2]):
+            result=p1[2]<p2[2]
+        elif(p1[0]!=p2[0]):
+            result=p1[0]<p2[0]
+        else:
+            result=point1<point2
+        print(point1,point2,result)
+        return result
+    
     def find_max_cycle_cost2(self, graph, circles, enabled_edges,start_node=None):
         """
         tmp = dict()
@@ -812,7 +808,8 @@ class TriangleMesh:
     def find_max_cycle_cost(self, graph): #help testing
         #return self.find_max_cycle_cost1(graph)
         return self.find_max_cycle_cost_wrapper(graph)
-    
+
+    '''
 
     def dfs(self, graph, start, visited, component):
         visited[start] = True
