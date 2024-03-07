@@ -384,6 +384,14 @@ class TriangleMesh:
                          self.triangles[triangle_idx, 0], 1] = triangle_idx
         return
     
+    def cartesian_to_spherical(self,idx):
+        x =self.vertices[idx][0]
+        y =self.vertices[idx][1]
+        z =self.vertices[idx][2]
+        r = math.sqrt(x**2 + y**2 + z**2)
+        theta = math.acos(z / r)
+        phi = math.atan2(y, x)
+        return [r, theta, phi]
     def cut_edge(self, vertex_idx1, vertex_idx2, vertex_idx3):
         '''
         vertex_idx1往vertex_idx2切割
