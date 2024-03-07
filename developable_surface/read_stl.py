@@ -8,7 +8,7 @@ import time
 from memory_profiler import profile
 import heapq
 #from tools import *
-
+count_time = False
 #wrapper for counting time
 def timer(func):
     def wrapper(*args, **kwargs):
@@ -16,7 +16,8 @@ def timer(func):
         result = func(*args, **kwargs)
         print(func.__name__, ":", time.time()-start)
         return result
-    return wrapper
+    if count_time == True:
+        return wrapper
 
 class Point:
     def __init__(self, x, y, z, triangle_idx, p_idx):
@@ -384,10 +385,16 @@ class TriangleMesh:
                          self.triangles[triangle_idx, 0], 1] = triangle_idx
         return
     
-    def cartesian_to_spherical(self,idx):
-        x =self.vertices[idx][0]
-        y =self.vertices[idx][1]
-        z =self.vertices[idx][2]
+    def cartesian_to_spherical(self,start_idx,end_idx):
+        x1 = self.vertices[start_idx][0]
+        y1 = self.vertices[start_idx][1]
+        z1 = self.vertices[start_idx][2]
+        x2 = self.vertices[end_idx][0]
+        y2 = self.vertices[end_idx][1]
+        z2 = self.vertices[end_idx][2]
+        x = x2-x1
+        y = y2-y1
+        z = z2-z1
         r = math.sqrt(x**2 + y**2 + z**2)
         theta = math.acos(z / r)
         phi = math.atan2(y, x)
