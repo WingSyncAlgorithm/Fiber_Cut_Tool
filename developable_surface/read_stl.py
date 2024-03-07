@@ -639,7 +639,7 @@ class TriangleMesh:
                 max_cost = cycle_cost
                 max_path = cycle_path
 
-        return max_cost, max_path
+        return  max_path
 
     def plot(self,graph,label=1,edge=1,enable=1,highlight=[]):
         if(enable==0):
