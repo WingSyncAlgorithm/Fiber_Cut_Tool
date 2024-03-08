@@ -204,7 +204,6 @@ class TriangleMesh:
         print("p6")
         st = time.time()
 
-## 是這樣註解嗎
         # 分離高曲率點
         high_curvature_subgraph = self.separate_disconnected_components(
             self.high_curvature_graph) # 2d list, each element is a subgraph(dict)        
@@ -213,7 +212,6 @@ class TriangleMesh:
         self.plot_graph(high_curvature_subgraph[0])
         self.plot_graph(high_curvature_subgraph[1])
 
-## here~~~
         print('p7')
         st = time.time()
 
@@ -239,19 +237,26 @@ class TriangleMesh:
         print('p9')
         st = time.time()
 
-        for i in range(len(self.boundaries)):
-            c=0
-            for j in range(len(surface_groups)):
-                for k in range(self.num_vertices):
-                    if surface_groups[j][self.boundaries[i][0]][k] != -1:
-                        self.boundary_idx.append(j)
-                        c=1
+## here~
+        # determine which boundary edge belongs to which surface group
+        ### one boundary edge can only belong to one surface group
+        ### one surface group can have multiple boundary edges
+        self.boundary_idx = [-1 for i in range(len(self.boundaries))]
+        for b_idx,b in enumerate(self.boundaries):
+            boundary_points = np.array(b)
+            for sg_idx, sg in enumerate(surface_groups):
+                    surface_group_points = np.array(list(sg.keys()))
+                    if np.isin(boundary_points, surface_group_points).all():
+                        self.boundary_idx[b_idx] = sg_idx
                         break
-                if c==1: break
+
         cut_path = []
+
         print(time.time()-st)
+
         print('p10')
         st = time.time()
+
         for i in range(len(set(self.boundary_idx))):
             if self.boundary_idx.count(i) >= 2:
                 indices = [j for j, value in enumerate(self.boundary_idx) if value == i]
