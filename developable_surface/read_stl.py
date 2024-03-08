@@ -231,6 +231,8 @@ class TriangleMesh:
         #print("self.num_vertices", self.num_vertices-self.num_original_vertices)
         self.calculate_length()
         surface_groups = self.separate_disconnected_components(self.edge_length)
+        print(len(surface_groups))
+        for surface in surface_groups: self.plot_graph(surface)
         self.boundary_idx = []
         
         print(time.time()-st)
@@ -333,6 +335,7 @@ class TriangleMesh:
             self.boundaries.append(max_cycle_path)
             #self.plot_points(max_cycle_path)
             add_cycle = []
+            self.plot_points(max_cycle_path)
             if(len(max_cycle_path)>2):
                 max_cycle_path.append(max_cycle_path[0])
                 max_cycle_path.append(max_cycle_path[1])
