@@ -7,7 +7,7 @@ import heapq
 import time
 from memory_profiler import profile
 import heapq
-from itertools import combinations,product
+from itertools import combinations
 #from tools import *
 
 count_time = True
@@ -841,24 +841,19 @@ class TriangleMesh:
         return components
 
     def separate_disconnected_components(self, graph):
-        components = self.connected_components(graph) #2d list, each list is a component(point_idx)
+        components = self.connected_components(graph)
+        #2d list, each list is a component(point_idx)
 
         # Create separate graphs for each connected component
         separated_graphs = []
         for component in components:
-            separated_graph = dict() #key: idx1, value: dict()-->key:idx2, value:weight
-            for node in component:
-                for neighbor, weight in graph[node].items():
-                    if neighbor in component:
-                        if(node not in separated_graph):
-                            separated_graph[node]=dict()
-                        separated_graph[node][neighbor] = weight
-
-                        if(neighbor not in separated_graph):
-                            separated_graph[neighbor] = dict()
-                        separated_graph[neighbor][node] = weight
+            separated_graph = {idx:dict() for idx in component}
+            #key: idx1, value: dict()-->key:idx2, value:weight
+            for p1_idx,p2_idx in combinations(component,2):
+                if p2_idx in graph[p1_idx]:
+                    separated_graph[p1_idx][p2_idx] = graph[p1_idx][p2_idx]
+                    separated_graph[p2_idx][p1_idx] = graph[p1_idx][p2_idx]
             separated_graphs.append(separated_graph)
-
         return separated_graphs
 
     def dijkstra(self, graph, start, end):
