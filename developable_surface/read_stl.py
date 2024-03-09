@@ -434,24 +434,41 @@ class TriangleMesh:
                 del self.high_curvature_graph[k] 
         return
 
+    def separate_disconnected_components(self, graph):
+        components = self.connected_components(graph)
+        #2d list, each list is a component(point_idx)
 
-    @timer
-    def process_cut(self, high_curvature_subgraph):
-        for subgraph in high_curvature_subgraph:
-            #print("find_max_cycle_cost")
-            max_cycle_path = self.find_max_cycle_cost(
-                subgraph)
-            self.boundaries.append(max_cycle_path)
-            #self.plot_points(max_cycle_path)
-            add_cycle = []
-            if(len(max_cycle_path)>2):
-                max_cycle_path.append(max_cycle_path[0])
-                max_cycle_path.append(max_cycle_path[1])
-            for point in range(2,len(max_cycle_path)):
-                add_point = self.cut_edge(max_cycle_path[point-2], max_cycle_path[point-1], max_cycle_path[point])
-                add_cycle.append(add_point)
-            self.boundaries.append(add_cycle)
-            # print(high_curvature_subgraph[subgraph][:][:])
+        # Create separate graphs for each connected component
+        separated_graphs = []
+        for component in components:
+            separated_graph = {idx:dict() for idx in component}
+            #key: idx1, value: dict()-->key:idx2, value:weight
+            for p1_idx,p2_idx in combinations(component,2):
+                if p2_idx in graph[p1_idx]:
+                    separated_graph[p1_idx][p2_idx] = graph[p1_idx][p2_idx]
+                    separated_graph[p2_idx][p1_idx] = graph[p1_idx][p2_idx]
+            separated_graphs.append(separated_graph)
+        return separated_graphs
+
+    def connected_components(self, graph):
+        visited = {i: False for i in graph.keys()}
+        components = []
+
+        for node in graph.keys():
+            if not visited[node]:
+                component = []
+                self.dfs(graph, node, visited, component)
+                components.append(component)
+
+        return components
+    
+    def dfs(self, graph, start, visited, component):
+        visited[start] = True
+        component.append(start)
+
+        for neighbor, weight in graph[start].items():
+            if not visited[neighbor]:
+                self.dfs(graph, neighbor, visited, component)
         return
 
     @timer
@@ -479,30 +496,64 @@ class TriangleMesh:
             self.connect[self.triangles[triangle_idx, 2],
                          self.triangles[triangle_idx, 0], 1] = triangle_idx
         return
-    
-    def cartesian_to_spherical(self,start_idx,end_idx):
-        assert(start_idx == self._current_node_info_['current'])
-        if (end_idx in self._current_node_info_):
-            return self.vertices[end_idx]
 
-        x1 = self.vertices[start_idx][0]
-        y1 = self.vertices[start_idx][1]
-        z1 = self.vertices[start_idx][2]
-        x2 = self.vertices[end_idx][0]
-        y2 = self.vertices[end_idx][1]
-        z2 = self.vertices[end_idx][2]
-        x = x2-x1
-        y = y2-y1
-        z = z2-z1
-        r = math.sqrt(x**2 + y**2 + z**2)
-        xy = math.sqrt(x**2 + y**2)
-        theta = math.degrees(math.atan2(z,xy))
-        #theta = math.acos(z / r)
-        phi = math.degrees(math.atan2(y, x))
-        if(phi<0):
-            phi+=360
-        self._current_node_info_[end_idx] = SpaceCoor(r,z,phi,end_idx)
-        return self._current_node_info_[end_idx]
+    @timer
+    def process_cut(self, high_curvature_subgraph):
+        for subgraph in high_curvature_subgraph:
+            #print("find_max_cycle_cost")
+            max_cycle_path = self.find_max_cycle_cost(
+                subgraph)
+            self.boundaries.append(max_cycle_path)
+            #self.plot_points(max_cycle_path)
+            add_cycle = []
+            if(len(max_cycle_path)>2):
+                max_cycle_path.append(max_cycle_path[0])
+                max_cycle_path.append(max_cycle_path[1])
+            for point in range(2,len(max_cycle_path)):
+                add_point = self.cut_edge(max_cycle_path[point-2], max_cycle_path[point-1], max_cycle_path[point])
+                add_cycle.append(add_point)
+            self.boundaries.append(add_cycle)
+            # print(high_curvature_subgraph[subgraph][:][:])
+        return
+
+    def find_max_cycle_cost(self, graph):
+        num_nodes = max(graph.keys())+1  #base 0
+        max_cost = float('-inf')
+        max_path = []
+        for start_node in graph: #
+            visited = [False for _ in range(num_nodes)]
+            #visited = np.zeros(num_nodes, dtype=bool)
+            #print("find_max_cycle_cost_helper")
+            cycle_cost, cycle_path = self.find_max_cycle_cost_helper(
+                graph, start_node, start_node, visited, 0, max_cost, [], [])
+            #print("find_max_cycle_cost", cycle_cost, cycle_path)
+            if cycle_cost > max_cost:
+                max_cost = cycle_cost
+                max_path = cycle_path
+
+        return  max_path
+    
+## recursion --> must change
+    def find_max_cycle_cost_helper(self, graph, start_node, current_node, visited, current_cost, max_cost, path, max_path):
+        visited[current_node] = True
+        path.append(current_node)
+        #print("find_max_cycle_cost_helper")
+
+        for neighbor in graph[current_node]:
+            if not visited[neighbor]:
+                #print(neighbor)
+                max_cost, max_path = self.find_max_cycle_cost_helper(
+                    graph, start_node, neighbor, visited, current_cost + graph[current_node][neighbor], max_cost, path, max_path)
+            elif neighbor == start_node:  # Found a cycle
+                #print(neighbor)
+                if current_cost + graph[current_node][neighbor] > max_cost:
+                    max_cost = current_cost + graph[current_node][neighbor]
+                    max_path = path.copy()
+
+        visited[current_node] = False
+        path.pop()
+
+        return max_cost, max_path
     
     def cut_edge(self, vertex_idx1, vertex_idx2, vertex_idx3):
         '''
@@ -598,7 +649,74 @@ class TriangleMesh:
                 
         self.num_vertices = len(self.vertices)
         return vertex_add_idx1
-    
+
+    def find_cut_path(self, graph1,start_nodes, end_nodes):
+        graph = dict()
+        for idx, node in enumerate(graph1):
+            tmp = dict()
+            for nidx, dis in enumerate(node):
+                if(dis!=-1):
+                    tmp[nidx]=dis
+            if(len(tmp)!=0):
+                graph[idx] = tmp
+
+        shortest_distance = float('inf')
+        shortest_path = []
+        for start_node in start_nodes:
+            for end_node in end_nodes:
+                path, distance = self.AStar(graph, start_node, end_node)
+                if distance < shortest_distance:
+                    shortest_distance = distance
+                    shortest_path = path
+        return shortest_path
+
+    def AStar(self,graph1, start_node, end_node):
+        graph=dict()
+        for nidx, n in graph1.items():
+            graph[nidx] = AStarNode(nidx,n,end_node,self.vertices)
+        heap = [graph[start_node]]
+        graph[start_node].gscore = 0
+        graph[start_node].score = graph[start_node].gscore + graph[start_node].hscore
+        graph[start_node].inheap = True
+        heapq.heapify(heap)
+        current_node_idx = start_node
+        while(len(heap)!=0 and current_node_idx!=end_node):
+            flag = False
+            current_node = heapq.heappop(heap)
+            current_node.inheap = False
+            current_node_idx = current_node.idx
+            for nidx, dis in current_node.neighbor.items():
+                if(graph[nidx].score == None or graph[nidx].gscore > current_node.gscore+dis):
+                    graph[nidx].gscore = current_node.gscore+dis
+                    graph[nidx].score = graph[nidx].gscore + graph[nidx].hscore
+                    if(graph[nidx].inheap==False):
+                        graph[nidx].inheap = True
+                        heapq.heappush(heap,graph[nidx])
+                    else:
+                        flag = True
+            if(flag==True):
+                heapq.heapify(heap)
+        assert(current_node_idx == end_node) #unknown error
+        
+        # a path is find
+        path = [end_node]
+        while(current_node_idx != start_node):
+            neighbor = list(graph[current_node_idx].neighbor.keys())
+            min_distance = math.inf
+            min_idx = -1
+            #find idx which is current_node's neighbor and have min gscore
+            for idx in neighbor:
+                if(graph[idx].gscore != None and graph[idx].gscore < min_distance):
+                    min_distance = graph[idx].gscore
+                    min_idx = idx
+
+            assert(min_idx!=-1)
+            path.append(min_idx)
+            current_node_idx = min_idx
+        
+        path.reverse()
+        return path, graph[end_node].gscore
+
     def find_start_edges(self,surface_group):
         c=0
         for point1_idx in range(self.num_vertices):
@@ -610,51 +728,187 @@ class TriangleMesh:
             if c==1: break
         return
 
+    def plot_graph(self,high_curvature_graph):
+        if(self.nograph):
+            return
+        x_data, y_data, z_data = [], [], []
+        for idx in high_curvature_graph:
+            x_data.append(
+                self.vertices[idx][0])
+            y_data.append(
+                self.vertices[idx][1])
+            z_data.append(
+                self.vertices[idx][2])
+            #print(point1_idx)
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.scatter(x_data, y_data, z_data, c='blue',
+                   marker='o', s=1)  # c是顏色，marker是標記，s是大小
 
+        # 設定座標軸標籤
+        ax.set_xlabel('X 軸')
+        ax.set_ylabel('Y 軸')
+        ax.set_zlabel('Z 軸')
+        ax.axis('equal')
+        plt.show()
+        return
 
+    def plot_points_graph(self,high_curvature_graph):
+        x_data, y_data, z_data = [], [], []
+        for i in high_curvature_graph:
+            point1_idx = i
+            x_data.append(
+                self.vertices[point1_idx][0])
+            y_data.append(
+                self.vertices[point1_idx][1])
+            z_data.append(
+                self.vertices[point1_idx][2])
+            #print(point1_idx)
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.scatter(x_data, y_data, z_data, c='blue',
+                   marker='o', s=1)  # c是顏色，marker是標記，s是大小
+
+        # 設定座標軸標籤
+        ax.set_xlabel('X 軸')
+        ax.set_ylabel('Y 軸')
+        ax.set_zlabel('Z 軸')
+        ax.axis('equal')
+        plt.show()
+        return
     
-   
-## recursion --> must change
-    def find_max_cycle_cost_helper(self, graph, start_node, current_node, visited, current_cost, max_cost, path, max_path):
-        visited[current_node] = True
-        path.append(current_node)
-        #print("find_max_cycle_cost_helper")
+    def plot_points(self,points):
+        x_data, y_data, z_data = [], [], []
+        for point_idx in points:
+            x_data.append(
+                self.vertices[point_idx][0])
+            y_data.append(
+                self.vertices[point_idx][1])
+            z_data.append(
+                self.vertices[point_idx][2])
+            #print(point_idx)
+        #print("x_data",len(x_data))
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.scatter(x_data, y_data, z_data, c='blue',
+                   marker='o', s=1)  # c是顏色，marker是標記，s是大小
 
-        for neighbor in graph[current_node]:
-            if not visited[neighbor]:
-                #print(neighbor)
-                max_cost, max_path = self.find_max_cycle_cost_helper(
-                    graph, start_node, neighbor, visited, current_cost + graph[current_node][neighbor], max_cost, path, max_path)
-            elif neighbor == start_node:  # Found a cycle
-                #print(neighbor)
-                if current_cost + graph[current_node][neighbor] > max_cost:
-                    max_cost = current_cost + graph[current_node][neighbor]
-                    max_path = path.copy()
+        # 設定座標軸標籤
+        ax.set_xlabel('X 軸')
+        ax.set_ylabel('Y 軸')
+        ax.set_zlabel('Z 軸')
+        ax.axis('equal')
+        plt.show()
+        return
+    
+    def plot(self,graph,label=1,edge=1,enable=1,highlight=[]):
+        if(enable==0):
+            return
+        if(highlight!=[]):
+            highlight.append(highlight[0])
+        fig = plt.figure()
+        ax = fig.add_subplot(111,projection='3d')
+        
 
-        visited[current_node] = False
-        path.pop()
+        for p1, p2s in graph.items():
+            # draw point
+            ax.scatter(self.vertices[p1][0], self.vertices[p1][1], self.vertices[p1][2], color='red', marker='o',s = 1)
+            # draw label
+            if(label==1):
+                ax.text(self.vertices[p1][0], self.vertices[p1][1], self.vertices[p1][2], str(p1), color='black', fontsize=12)
+            for p2, draw_edge in p2s.items():
+                if edge==1 and draw_edge == True:
+                    #draw edge from p1 to p2
+                    if(abs(highlight.index(p1)-highlight.index(p2))==1):
+                        ax.plot([self.vertices[p1][0], self.vertices[p2][0]], [self.vertices[p1][1], self.vertices[p2][1]],[self.vertices[p1][2], self.vertices[p2][2]], color='green', linestyle='-', linewidth=2)
+                    else:
+                        ax.plot([self.vertices[p1][0], self.vertices[p2][0]], [self.vertices[p1][1], self.vertices[p2][1]],[self.vertices[p1][2], self.vertices[p2][2]], color='blue', linestyle='-', linewidth=2)
+        plt.axis('equal')
+        # 添加標籤和標題
+        ax.set_xlabel('X-axis')
+        ax.set_ylabel('Y-axis')
+        ax.set_zlabel('Z-axis')
 
-        return max_cost, max_path
+        # 顯示圖形
+        plt.show()
 
-    def find_max_cycle_cost(self, graph):
-        num_nodes = max(graph.keys())+1  #base 0
-        max_cost = float('-inf')
-        max_path = []
-        for start_node in graph: #
-            visited = [False for _ in range(num_nodes)]
-            #visited = np.zeros(num_nodes, dtype=bool)
-            #print("find_max_cycle_cost_helper")
-            cycle_cost, cycle_path = self.find_max_cycle_cost_helper(
-                graph, start_node, start_node, visited, 0, max_cost, [], [])
-            #print("find_max_cycle_cost", cycle_cost, cycle_path)
-            if cycle_cost > max_cost:
-                max_cost = cycle_cost
-                max_path = cycle_path
+    def dijkstra(self, graph, start, end):
+        num_nodes = len(graph)
+        
+        # 初始化距離列表，表示從起始節點到各節點的最短距離
+        distances = [float('infinity')] * num_nodes
+        distances[start] = 0
 
-        return  max_path
+        # 初始化前驅節點列表
+        predecessors = [None] * num_nodes
 
+        # 初始化優先佇列
+        priority_queue = [(0, start)]
 
-    '''    
+        while priority_queue:
+            current_distance, current_node = heapq.heappop(priority_queue)
+
+            # 如果已經找到更短的路徑，則忽略當前節點
+            if current_distance > distances[current_node]:
+                continue
+
+            # 遍歷所有相鄰節點
+            for neighbor in range(num_nodes):
+                weight = graph[current_node][neighbor]
+
+                # 如果有邊且找到更短的路徑，則更新距離列表、前驅節點列表和優先佇列
+                if weight > 0:
+                    distance = current_distance + weight
+                    if distance < distances[neighbor]:
+                        distances[neighbor] = distance
+                        predecessors[neighbor] = current_node
+                        heapq.heappush(priority_queue, (distance, neighbor))
+
+        # 構建最短路徑節點序列
+        path = []
+        current_node = end
+        while current_node is not None:
+            path.insert(0, current_node)
+            current_node = predecessors[current_node]
+
+        return path, distances[end]  # 返回最短路徑的節點序列和路徑長度
+
+    def find_cut_path1(self, graph,start_nodes, end_nodes):
+        shortest_distance = float('inf')
+        shortest_path = []
+        for start_node in start_nodes:
+            for end_node in end_nodes:
+                path, distance = self.dijkstra(graph, start_node, end_node)
+                if distance < shortest_distance:
+                    shortest_distance = distance
+                    shortest_path = path
+        return shortest_path
+
+    '''   
+        def cartesian_to_spherical(self,start_idx,end_idx):
+        assert(start_idx == self._current_node_info_['current'])
+        if (end_idx in self._current_node_info_):
+            return self.vertices[end_idx]
+
+        x1 = self.vertices[start_idx][0]
+        y1 = self.vertices[start_idx][1]
+        z1 = self.vertices[start_idx][2]
+        x2 = self.vertices[end_idx][0]
+        y2 = self.vertices[end_idx][1]
+        z2 = self.vertices[end_idx][2]
+        x = x2-x1
+        y = y2-y1
+        z = z2-z1
+        r = math.sqrt(x**2 + y**2 + z**2)
+        xy = math.sqrt(x**2 + y**2)
+        theta = math.degrees(math.atan2(z,xy))
+        #theta = math.acos(z / r)
+        phi = math.degrees(math.atan2(y, x))
+        if(phi<0):
+            phi+=360
+        self._current_node_info_[end_idx] = SpaceCoor(r,z,phi,end_idx)
+        return self._current_node_info_[end_idx]
+
     def find_max_cycle_cost2(self, graph, circles, enabled_edges,start_node=None):
         """
         tmp = dict()
@@ -767,266 +1021,6 @@ class TriangleMesh:
 
     '''
 
-    def dfs(self, graph, start, visited, component):
-        visited[start] = True
-        component.append(start)
-
-        for neighbor, weight in graph[start].items():
-            if not visited[neighbor]:
-                self.dfs(graph, neighbor, visited, component)
-        return
-
-    def connected_components(self, graph):
-        visited = {i: False for i in graph.keys()}
-        components = []
-
-        for node in graph.keys():
-            if not visited[node]:
-                component = []
-                self.dfs(graph, node, visited, component)
-                components.append(component)
-
-        return components
-
-    def separate_disconnected_components(self, graph):
-        components = self.connected_components(graph)
-        #2d list, each list is a component(point_idx)
-
-        # Create separate graphs for each connected component
-        separated_graphs = []
-        for component in components:
-            separated_graph = {idx:dict() for idx in component}
-            #key: idx1, value: dict()-->key:idx2, value:weight
-            for p1_idx,p2_idx in combinations(component,2):
-                if p2_idx in graph[p1_idx]:
-                    separated_graph[p1_idx][p2_idx] = graph[p1_idx][p2_idx]
-                    separated_graph[p2_idx][p1_idx] = graph[p1_idx][p2_idx]
-            separated_graphs.append(separated_graph)
-        return separated_graphs
-
-    def dijkstra(self, graph, start, end):
-        num_nodes = len(graph)
-        
-        # 初始化距離列表，表示從起始節點到各節點的最短距離
-        distances = [float('infinity')] * num_nodes
-        distances[start] = 0
-
-        # 初始化前驅節點列表
-        predecessors = [None] * num_nodes
-
-        # 初始化優先佇列
-        priority_queue = [(0, start)]
-
-        while priority_queue:
-            current_distance, current_node = heapq.heappop(priority_queue)
-
-            # 如果已經找到更短的路徑，則忽略當前節點
-            if current_distance > distances[current_node]:
-                continue
-
-            # 遍歷所有相鄰節點
-            for neighbor in range(num_nodes):
-                weight = graph[current_node][neighbor]
-
-                # 如果有邊且找到更短的路徑，則更新距離列表、前驅節點列表和優先佇列
-                if weight > 0:
-                    distance = current_distance + weight
-                    if distance < distances[neighbor]:
-                        distances[neighbor] = distance
-                        predecessors[neighbor] = current_node
-                        heapq.heappush(priority_queue, (distance, neighbor))
-
-        # 構建最短路徑節點序列
-        path = []
-        current_node = end
-        while current_node is not None:
-            path.insert(0, current_node)
-            current_node = predecessors[current_node]
-
-        return path, distances[end]  # 返回最短路徑的節點序列和路徑長度
-
-    def find_cut_path1(self, graph,start_nodes, end_nodes):
-        shortest_distance = float('inf')
-        shortest_path = []
-        for start_node in start_nodes:
-            for end_node in end_nodes:
-                path, distance = self.dijkstra(graph, start_node, end_node)
-                if distance < shortest_distance:
-                    shortest_distance = distance
-                    shortest_path = path
-        return shortest_path
-
-    def AStar(self,graph1, start_node, end_node):
-        graph=dict()
-        for nidx, n in graph1.items():
-            graph[nidx] = AStarNode(nidx,n,end_node,self.vertices)
-        heap = [graph[start_node]]
-        graph[start_node].gscore = 0
-        graph[start_node].score = graph[start_node].gscore + graph[start_node].hscore
-        graph[start_node].inheap = True
-        heapq.heapify(heap)
-        current_node_idx = start_node
-        while(len(heap)!=0 and current_node_idx!=end_node):
-            flag = False
-            current_node = heapq.heappop(heap)
-            current_node.inheap = False
-            current_node_idx = current_node.idx
-            for nidx, dis in current_node.neighbor.items():
-                if(graph[nidx].score == None or graph[nidx].gscore > current_node.gscore+dis):
-                    graph[nidx].gscore = current_node.gscore+dis
-                    graph[nidx].score = graph[nidx].gscore + graph[nidx].hscore
-                    if(graph[nidx].inheap==False):
-                        graph[nidx].inheap = True
-                        heapq.heappush(heap,graph[nidx])
-                    else:
-                        flag = True
-            if(flag==True):
-                heapq.heapify(heap)
-        assert(current_node_idx == end_node) #unknown error
-        
-        # a path is find
-        path = [end_node]
-        while(current_node_idx != start_node):
-            neighbor = list(graph[current_node_idx].neighbor.keys())
-            min_distance = math.inf
-            min_idx = -1
-            #find idx which is current_node's neighbor and have min gscore
-            for idx in neighbor:
-                if(graph[idx].gscore != None and graph[idx].gscore < min_distance):
-                    min_distance = graph[idx].gscore
-                    min_idx = idx
-
-            assert(min_idx!=-1)
-            path.append(min_idx)
-            current_node_idx = min_idx
-        
-        path.reverse()
-        return path, graph[end_node].gscore
-
-    def find_cut_path(self, graph1,start_nodes, end_nodes):
-        graph = dict()
-        for idx, node in enumerate(graph1):
-            tmp = dict()
-            for nidx, dis in enumerate(node):
-                if(dis!=-1):
-                    tmp[nidx]=dis
-            if(len(tmp)!=0):
-                graph[idx] = tmp
-
-        shortest_distance = float('inf')
-        shortest_path = []
-        for start_node in start_nodes:
-            for end_node in end_nodes:
-                path, distance = self.AStar(graph, start_node, end_node)
-                if distance < shortest_distance:
-                    shortest_distance = distance
-                    shortest_path = path
-        return shortest_path
-
-    def plot_graph(self,high_curvature_graph):
-        if(self.nograph):
-            return
-        x_data, y_data, z_data = [], [], []
-        for idx in high_curvature_graph:
-            x_data.append(
-                self.vertices[idx][0])
-            y_data.append(
-                self.vertices[idx][1])
-            z_data.append(
-                self.vertices[idx][2])
-            #print(point1_idx)
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        ax.scatter(x_data, y_data, z_data, c='blue',
-                   marker='o', s=1)  # c是顏色，marker是標記，s是大小
-
-        # 設定座標軸標籤
-        ax.set_xlabel('X 軸')
-        ax.set_ylabel('Y 軸')
-        ax.set_zlabel('Z 軸')
-        ax.axis('equal')
-        plt.show()
-        return
-
-    def plot_points_graph(self,high_curvature_graph):
-        x_data, y_data, z_data = [], [], []
-        for i in high_curvature_graph:
-            point1_idx = i
-            x_data.append(
-                self.vertices[point1_idx][0])
-            y_data.append(
-                self.vertices[point1_idx][1])
-            z_data.append(
-                self.vertices[point1_idx][2])
-            #print(point1_idx)
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        ax.scatter(x_data, y_data, z_data, c='blue',
-                   marker='o', s=1)  # c是顏色，marker是標記，s是大小
-
-        # 設定座標軸標籤
-        ax.set_xlabel('X 軸')
-        ax.set_ylabel('Y 軸')
-        ax.set_zlabel('Z 軸')
-        ax.axis('equal')
-        plt.show()
-        return
-    
-    def plot_points(self,points):
-        x_data, y_data, z_data = [], [], []
-        for point_idx in points:
-            x_data.append(
-                self.vertices[point_idx][0])
-            y_data.append(
-                self.vertices[point_idx][1])
-            z_data.append(
-                self.vertices[point_idx][2])
-            #print(point_idx)
-        #print("x_data",len(x_data))
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        ax.scatter(x_data, y_data, z_data, c='blue',
-                   marker='o', s=1)  # c是顏色，marker是標記，s是大小
-
-        # 設定座標軸標籤
-        ax.set_xlabel('X 軸')
-        ax.set_ylabel('Y 軸')
-        ax.set_zlabel('Z 軸')
-        ax.axis('equal')
-        plt.show()
-        return
-    
-    def plot(self,graph,label=1,edge=1,enable=1,highlight=[]):
-        if(enable==0):
-            return
-        if(highlight!=[]):
-            highlight.append(highlight[0])
-        fig = plt.figure()
-        ax = fig.add_subplot(111,projection='3d')
-        
-
-        for p1, p2s in graph.items():
-            # draw point
-            ax.scatter(self.vertices[p1][0], self.vertices[p1][1], self.vertices[p1][2], color='red', marker='o',s = 1)
-            # draw label
-            if(label==1):
-                ax.text(self.vertices[p1][0], self.vertices[p1][1], self.vertices[p1][2], str(p1), color='black', fontsize=12)
-            for p2, draw_edge in p2s.items():
-                if edge==1 and draw_edge == True:
-                    #draw edge from p1 to p2
-                    if(abs(highlight.index(p1)-highlight.index(p2))==1):
-                        ax.plot([self.vertices[p1][0], self.vertices[p2][0]], [self.vertices[p1][1], self.vertices[p2][1]],[self.vertices[p1][2], self.vertices[p2][2]], color='green', linestyle='-', linewidth=2)
-                    else:
-                        ax.plot([self.vertices[p1][0], self.vertices[p2][0]], [self.vertices[p1][1], self.vertices[p2][1]],[self.vertices[p1][2], self.vertices[p2][2]], color='blue', linestyle='-', linewidth=2)
-        plt.axis('equal')
-        # 添加標籤和標題
-        ax.set_xlabel('X-axis')
-        ax.set_ylabel('Y-axis')
-        ax.set_zlabel('Z-axis')
-
-        # 顯示圖形
-        plt.show()
-
 if __name__ == "__main__":
-    mesh = TriangleMesh('inclined_cylinder.stl')
+    mesh = TriangleMesh('inclined_cylinder.stl',gaussian_curvature_limit=0.0001,nograph=False)
     #mesh = TriangleMesh('cylinder.stl')
