@@ -231,7 +231,7 @@ class TriangleMesh:
         self.calculate_length()
         surface_groups = self.separate_disconnected_components(self.edge_length)
         for g in surface_groups: self.plot_graph(g)
-        self.plot(dict((key, value) for key, value in self.edge_length.items() if key > self.num_original_vertices),label=0)
+        #self.plot(dict((key, value) for key, value in self.edge_length.items() if key > self.num_original_vertices),label=0)
         self.boundary_idx = []
         
         print(time.time()-st)
@@ -754,8 +754,8 @@ class TriangleMesh:
             if(label==1):
                 ax.text(self.vertices[p1][0], self.vertices[p1][1], self.vertices[p1][2], str(p1), color='black', fontsize=12)
             for p2, draw_edge in p2s.items():
-                ax.scatter(self.vertices[p2][0], self.vertices[p2][1], self.vertices[p2][2], color='red', marker='o',s = 1)
-                ax.plot([self.vertices[p1][0], self.vertices[p2][0]], [self.vertices[p1][1], self.vertices[p2][1]],[self.vertices[p1][2], self.vertices[p2][2]], color='green', linestyle='-', linewidth=2)
+                #ax.scatter(self.vertices[p2][0], self.vertices[p2][1], self.vertices[p2][2], color='red', marker='o',s = 1)
+                #ax.plot([self.vertices[p1][0], self.vertices[p2][0]], [self.vertices[p1][1], self.vertices[p2][1]],[self.vertices[p1][2], self.vertices[p2][2]], color='green', linestyle='-', linewidth=2)
                 if edge==1 and draw_edge == True:
                     #draw edge from p1 to p2
                     if(abs(highlight.index(p1)-highlight.index(p2))==1):
