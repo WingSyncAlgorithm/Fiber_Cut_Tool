@@ -230,6 +230,8 @@ class TriangleMesh:
         #print("self.num_vertices", self.num_vertices-self.num_original_vertices)
         self.calculate_length()
         surface_groups = self.separate_disconnected_components(self.edge_length)
+        for g in surface_groups: self.plot_graph(g)
+        self.plot(dict((key, value) for key, value in self.edge_length.items() if key > self.num_original_vertices),label=0)
         self.boundary_idx = []
         
         print(time.time()-st)
@@ -455,7 +457,7 @@ class TriangleMesh:
         components = []
 
         for node in graph.keys():
-            if not visited[node]:
+            if visited[node] == False:
                 component = []
                 self.dfs(graph, node, visited, component)
                 components.append(component)
@@ -467,7 +469,7 @@ class TriangleMesh:
         component.append(start)
 
         for neighbor, weight in graph[start].items():
-            if not visited[neighbor]:
+            if visited[neighbor] == False:
                 self.dfs(graph, neighbor, visited, component)
         return
 
@@ -506,11 +508,8 @@ class TriangleMesh:
             self.boundaries.append(max_cycle_path)
             #self.plot_points(max_cycle_path)
             add_cycle = []
-            if(len(max_cycle_path)>2):
-                max_cycle_path.append(max_cycle_path[0])
-                max_cycle_path.append(max_cycle_path[1])
-            for point in range(2,len(max_cycle_path)):
-                add_point = self.cut_edge(max_cycle_path[point-2], max_cycle_path[point-1], max_cycle_path[point])
+            for point in range(len(max_cycle_path)):
+                add_point = self.cut_edge(max_cycle_path[(point)%len(max_cycle_path)], max_cycle_path[(point+1)%len(max_cycle_path)], max_cycle_path[(point+2)%len(max_cycle_path)])
                 add_cycle.append(add_point)
             self.boundaries.append(add_cycle)
             # print(high_curvature_subgraph[subgraph][:][:])
@@ -559,96 +558,34 @@ class TriangleMesh:
         '''
         vertex_idx1往vertex_idx2切割
         '''
-        vertex_add_idx1 = 0
         vertex_add_idx2 = 0
-        is_added1 = False
         is_added2 = False
         for added_idx in range(self.num_original_vertices, self.num_vertices):
-            if (self.vertices[vertex_idx1] == self.vertices[added_idx]):
-                vertex_add_idx1 = added_idx
-                is_added1 = True
-
             if (self.vertices[vertex_idx2] == self.vertices[added_idx]):
                 vertex_add_idx2 = added_idx
                 is_added2 = True
 
-        if is_added1 == False:
-            vertex_add_idx1 = self.num_vertices
-            self.vertices.append(self.vertices[vertex_idx1])
-            self.num_vertices = len(self.vertices)
         if is_added2 == False:
             vertex_add_idx2 = self.num_vertices
             self.vertices.append(self.vertices[vertex_idx2])
             self.num_vertices = len(self.vertices)
-        triangle_idx = self.connect[vertex_idx1, vertex_idx2, 1]
-        if self.triangles[triangle_idx, 0] == vertex_idx1:
-            if self.triangles[triangle_idx, 1] == vertex_idx2:
-                self.triangles[triangle_idx, 0] = vertex_add_idx1
-                self.triangles[triangle_idx, 1] = vertex_add_idx2
                 
-                point1_idx = self.connect[vertex_idx1, vertex_idx2, 0]
-                point2_idx = vertex_idx2
-                point3_idx = self.connect[point1_idx, point2_idx, 0]
-                if point1_idx != vertex_idx3:
-                    while point3_idx != vertex_idx3:
-                        triangle_middle_idx = self.connect[point1_idx,
-                                                           point2_idx, 1]
-                        #print(point3_idx,vertex_idx3)
-                        for i in range(3):
-                            if self.triangles[triangle_middle_idx, i] == vertex_idx2:
-                                self.triangles[triangle_middle_idx,
-                                               i] = vertex_add_idx2
-                                break
-                        point1_idx = self.connect[point1_idx, point2_idx, 0]
-                        point3_idx = self.connect[point1_idx, point2_idx, 0]
-                
-        elif self.triangles[triangle_idx, 1] == vertex_idx1:
-            if self.triangles[triangle_idx, 2] == vertex_idx2:
-                self.triangles[triangle_idx, 1] = vertex_add_idx1
-                self.triangles[triangle_idx, 2] = vertex_add_idx2
-                
-                point1_idx = self.connect[vertex_idx1, vertex_idx2, 0]
-                point2_idx = vertex_idx2
-                point3_idx = self.connect[point1_idx, point2_idx, 0]
-                #print(self.vertices[vertex_idx1],self.vertices[point2_idx],self.vertices[point1_idx])
-                #print(vertex_idx1,vertex_idx2,point1_idx,self.connect[point2_idx, point1_idx, 0], point3_idx,vertex_idx3)
-                #print(self.connect[499,477,0])
-                if point1_idx != vertex_idx3:
-                    while point3_idx != vertex_idx3:
-                        triangle_middle_idx = self.connect[point1_idx,
-                                                           point2_idx, 1]
-                        #print(point3_idx,vertex_idx3)
-                        for i in range(3):
-                            if self.triangles[triangle_middle_idx, i] == vertex_idx2:
-                                self.triangles[triangle_middle_idx,
-                                               i] = vertex_add_idx2
-                                break
-                        point1_idx = self.connect[point1_idx, point2_idx, 0]
-                        point3_idx = self.connect[point1_idx, point2_idx, 0]
-                
-        elif self.triangles[triangle_idx, 2] == vertex_idx1:
-            if self.triangles[triangle_idx, 0] == vertex_idx2:
-                self.triangles[triangle_idx, 2] = vertex_add_idx1
-                self.triangles[triangle_idx, 0] = vertex_add_idx2
-                
-                point1_idx = self.connect[vertex_idx1, vertex_idx2, 0]
-                point2_idx = vertex_idx2
-                point3_idx = self.connect[point1_idx, point2_idx, 0]
-                if point1_idx != vertex_idx3:
-                    while point3_idx != vertex_idx3:
-                        triangle_middle_idx = self.connect[point1_idx,
-                                                           point2_idx, 1]
-                        #print(point3_idx,vertex_idx3)
-                        for i in range(3):
-                            if self.triangles[triangle_middle_idx, i] == vertex_idx2:
-                                self.triangles[triangle_middle_idx,
-                                               i] = vertex_add_idx2
-                                break
-                        point1_idx = self.connect[point1_idx, point2_idx, 0]
-                        point3_idx = self.connect[point1_idx, point2_idx, 0]
-                
-        self.num_vertices = len(self.vertices)
-        return vertex_add_idx1
+        point1_idx = vertex_idx1
+        point2_idx = vertex_idx2
+        point3_idx = self.connect[point1_idx, point2_idx, 0]
+        while True:
+            triangle_middle_idx = self.connect[point1_idx,
+                                               point2_idx, 1]
+            for i in range(3):
+                if self.triangles[triangle_middle_idx, i] == vertex_idx2:
+                    self.triangles[triangle_middle_idx,
+                                   i] = vertex_add_idx2
+                    break
+            if point3_idx == vertex_idx3:
+                break
+            point1_idx = point3_idx
+            point3_idx = self.connect[point1_idx, point2_idx, 0]
+        return vertex_add_idx2
 
     def find_cut_path(self, graph1,start_nodes, end_nodes):
         graph = dict()
@@ -817,6 +754,8 @@ class TriangleMesh:
             if(label==1):
                 ax.text(self.vertices[p1][0], self.vertices[p1][1], self.vertices[p1][2], str(p1), color='black', fontsize=12)
             for p2, draw_edge in p2s.items():
+                ax.scatter(self.vertices[p2][0], self.vertices[p2][1], self.vertices[p2][2], color='red', marker='o',s = 1)
+                ax.plot([self.vertices[p1][0], self.vertices[p2][0]], [self.vertices[p1][1], self.vertices[p2][1]],[self.vertices[p1][2], self.vertices[p2][2]], color='green', linestyle='-', linewidth=2)
                 if edge==1 and draw_edge == True:
                     #draw edge from p1 to p2
                     if(abs(highlight.index(p1)-highlight.index(p2))==1):
