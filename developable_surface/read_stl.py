@@ -257,7 +257,7 @@ class TriangleMesh:
 
         print('p10')
         st = time.time()
-
+        ## find short cut path between two boundaries which belong to the same surface group
         for i in range(len(set(self.boundary_idx))):
             if self.boundary_idx.count(i) >= 2:
                 indices = [j for j, value in enumerate(self.boundary_idx) if value == i]
@@ -267,7 +267,7 @@ class TriangleMesh:
                         boundary2_idx = indices[n]
                         boundary1 = self.boundaries[boundary1_idx]
                         boundary2 = self.boundaries[boundary2_idx]
-                        cut_path.append(self.find_cut_path(surface_groups[i],boundary1,boundary2))
+                        cut_path.append(self.find_cut_path1(surface_groups[i],boundary1,boundary2))
         
         print(time.time()-st)
         print('p11')
@@ -589,6 +589,7 @@ class TriangleMesh:
 
     def find_cut_path(self, graph1,start_nodes, end_nodes):
         graph = dict()
+        """
         for idx, node in enumerate(graph1):
             tmp = dict()
             for nidx, dis in enumerate(node):
@@ -596,12 +597,12 @@ class TriangleMesh:
                     tmp[nidx]=dis
             if(len(tmp)!=0):
                 graph[idx] = tmp
-
+        """
         shortest_distance = float('inf')
         shortest_path = []
         for start_node in start_nodes:
             for end_node in end_nodes:
-                path, distance = self.AStar(graph, start_node, end_node)
+                path, distance = self.AStar(graph1, start_node, end_node)
                 if distance < shortest_distance:
                     shortest_distance = distance
                     shortest_path = path
@@ -775,16 +776,16 @@ class TriangleMesh:
         num_nodes = len(graph)
         
         # 初始化距離列表，表示從起始節點到各節點的最短距離
-        distances = [float('infinity')] * num_nodes
+        distances = {nidx:float('infinity') for nidx in graph.keys()}
         distances[start] = 0
 
         # 初始化前驅節點列表
-        predecessors = [None] * num_nodes
+        predecessors = {nidx:None for nidx in graph.keys()}
 
         # 初始化優先佇列
         priority_queue = [(0, start)]
 
-        while priority_queue:
+        while len(priority_queue)>0:
             current_distance, current_node = heapq.heappop(priority_queue)
 
             # 如果已經找到更短的路徑，則忽略當前節點
@@ -792,24 +793,24 @@ class TriangleMesh:
                 continue
 
             # 遍歷所有相鄰節點
-            for neighbor in range(num_nodes):
+            for neighbor in graph[current_node].keys():
+
                 weight = graph[current_node][neighbor]
 
                 # 如果有邊且找到更短的路徑，則更新距離列表、前驅節點列表和優先佇列
-                if weight > 0:
-                    distance = current_distance + weight
-                    if distance < distances[neighbor]:
-                        distances[neighbor] = distance
-                        predecessors[neighbor] = current_node
-                        heapq.heappush(priority_queue, (distance, neighbor))
+                distance = current_distance + weight
+                if distance < distances[neighbor]:
+                    distances[neighbor] = distance
+                    predecessors[neighbor] = current_node
+                    heapq.heappush(priority_queue, (distance, neighbor))
 
         # 構建最短路徑節點序列
         path = []
         current_node = end
-        while current_node is not None:
-            path.insert(0, current_node)
+        while current_node != None:
+            path.append(current_node)
             current_node = predecessors[current_node]
-
+        path.reverse()
         return path, distances[end]  # 返回最短路徑的節點序列和路徑長度
 
     def find_cut_path1(self, graph,start_nodes, end_nodes):
@@ -961,5 +962,5 @@ class TriangleMesh:
     '''
 
 if __name__ == "__main__":
-    mesh = TriangleMesh('inclined_cylinder.stl',gaussian_curvature_limit=0.0001,nograph=False)
+    mesh = TriangleMesh('inclined_cylinder.stl',gaussian_curvature_limit=0.0001,nograph=True)
     #mesh = TriangleMesh('cylinder.stl')
