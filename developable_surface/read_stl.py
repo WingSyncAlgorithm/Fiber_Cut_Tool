@@ -215,6 +215,7 @@ class TriangleMesh:
         st = time.time()
 
         # 儲存由兩點所連接的第三點
+        self.num_vertices = len(self.vertices)
         self.connect = {i:dict() for i in range(self.num_vertices)}
         self.find_connect()
         
@@ -270,6 +271,14 @@ class TriangleMesh:
         
         print(time.time()-st)
         print('p11')
+        self.connect = {i:dict() for i in range(self.num_vertices)}
+        self.find_connect()
+        print(self.connect[cut_path[0][0]][cut_path[0][1]][0])
+        for path in cut_path:
+            for point in range(len(path)-2):
+                self.cut_edge(path[(point)], path[(point+1)], path[(point+2)])
+            self.cut_edge_for_line(path[len(path)-2], path[len(path)-1], "NULL")
+            self.cut_edge_for_line("NULL", path[0], path[1])
         st = time.time()
                         
 
@@ -489,6 +498,7 @@ class TriangleMesh:
             self.boundaries.append(add_cycle)
             # print(high_curvature_subgraph[subgraph][:][:])
         return
+    
 
     def find_max_cycle_cost(self, graph):
         num_nodes = max(graph.keys())+1  #base 0
@@ -560,6 +570,47 @@ class TriangleMesh:
             point1_idx = point3_idx
             point3_idx = self.connect[point1_idx][point2_idx][0]
         return vertex_add_idx2
+    def cut_edge_for_line(self,vertex_idx1,vertex_idx2,vertex_idx3):
+        '''
+        vertex_idx1往vertex_idx2切割
+        '''
+        vertex_add_idx2 = 0
+        is_added2 = False
+        for added_idx in range(self.num_original_vertices, self.num_vertices):
+            if (self.vertices[vertex_idx2] == self.vertices[added_idx]):
+                vertex_add_idx2 = added_idx
+                is_added2 = True
+
+        if is_added2 == False:
+            vertex_add_idx2 = self.num_vertices
+            self.vertices.append(self.vertices[vertex_idx2])
+            self.num_vertices = len(self.vertices)
+                
+        
+        
+        if vertex_idx1 == "NULL":
+            point2_idx = self.connect[vertex_idx2][vertex_idx3][0]
+            point1_idx = vertex_idx2
+            point3_idx = self.connect[point1_idx][point2_idx][0]
+        else:
+            point1_idx = vertex_idx1
+            point2_idx = vertex_idx2
+            point3_idx = self.connect[point1_idx][point2_idx][0]
+        while True:
+            triangle_middle_idx = self.connect[point1_idx][point2_idx][1]
+            for i in range(3):
+                if self.triangles[triangle_middle_idx, i] == vertex_idx2:
+                    self.triangles[triangle_middle_idx,
+                                   i] = vertex_add_idx2
+                    break
+            if point3_idx == vertex_idx3 or point3_idx == -1:
+                break
+            if vertex_idx1 == "NULL":
+                point2_idx = point3_idx
+            else:
+                point1_idx = point3_idx
+
+            point3_idx = self.connect[point1_idx][point2_idx][0]
 
     def find_cut_path3(self, graph1,start_nodes, end_nodes):
         """
@@ -992,5 +1043,5 @@ class TriangleMesh:
     '''
 
 if __name__ == "__main__":
-    mesh = TriangleMesh('inclined_cylinder.stl',gaussian_curvature_limit=0.0001,nograph=True)
+    mesh = TriangleMesh('inclined_cylinder.stl',gaussian_curvature_limit=0.0001,nograph=False)
     #mesh = TriangleMesh('cylinder.stl')
