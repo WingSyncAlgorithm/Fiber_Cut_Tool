@@ -215,8 +215,7 @@ class TriangleMesh:
         st = time.time()
 
         # 儲存由兩點所連接的第三點
-        self.connect = np.full(
-            (self.num_vertices, self.num_vertices, 2), -1, dtype=int)
+        self.connect = {i:dict() for i in range(self.num_vertices)}
         self.find_connect()
         
         print(time.time()-st)
@@ -267,7 +266,7 @@ class TriangleMesh:
                         boundary2_idx = indices[n]
                         boundary1 = self.boundaries[boundary1_idx]
                         boundary2 = self.boundaries[boundary2_idx]
-                        cut_path.append(self.find_cut_path1(surface_groups[i],boundary1,boundary2))
+                        cut_path.append(self.find_cut_path4(surface_groups[i],boundary1,boundary2))
         
         print(time.time()-st)
         print('p11')
@@ -279,12 +278,12 @@ class TriangleMesh:
         # 初始化儲存展開到平面的點的矩陣
         self.s = np.full((self.num_vertices, 2), 99999999, dtype=float)
         # 儲存由兩點所連接的第三點
-        self.connect = np.full(
-            (self.num_vertices, self.num_vertices, 2), -1, dtype=int)
+        #self.connect[point1_idx,point2_idx] = [point3_idx,triangle_idx]   逆時針
+        self.connect = {i:dict() for i in range(self.num_vertices)}
         self.find_connect()
         self.start_edges = []
         print(time.time()-st)
-        print('p11')
+        print('p12')
         st = time.time()
         surface_groups = self.separate_disconnected_components(self.edge_length)
         for i in range(np.size(surface_groups, axis=0)):
@@ -329,6 +328,15 @@ class TriangleMesh:
                 self.point_triangle_adj[point_idx].append(temp[i].triangle_idx)
         del temp
 
+    def p2p_length(self,point1_idx,point2_idx):
+        point1 = self.vertices[point1_idx]
+        point2 = self.vertices[point2_idx]
+        return math.sqrt(
+                (point1[0]-point2[0])**2+
+                (point1[1]-point2[1])**2+
+                (point1[2]-point2[2])**2
+            )
+
     @timer
     def calculate_length(self):
         self.edge_length = {i:dict() for i in range(self.num_vertices)}
@@ -336,26 +344,11 @@ class TriangleMesh:
             point1_idx = self.triangles[triangle_idx, 0]
             point2_idx = self.triangles[triangle_idx, 1]
             point3_idx = self.triangles[triangle_idx, 2]
-            point1 = self.vertices[point1_idx]
-            point2 = self.vertices[point2_idx]
-            point3 = self.vertices[point3_idx]
-            self.edge_length[point1_idx][point2_idx] = math.sqrt(
-                (point1[0]-point2[0])**2+
-                (point1[1]-point2[1])**2+
-                (point1[2]-point2[2])**2
-            )
+            self.edge_length[point1_idx][point2_idx] = self.p2p_length(point1_idx,point2_idx)
             self.edge_length[point2_idx][point1_idx] = self.edge_length[point1_idx][point2_idx]
-            self.edge_length[point1_idx][point3_idx] = math.sqrt(
-                (point1[0]-point3[0])**2+
-                (point1[1]-point3[1])**2+
-                (point1[2]-point3[2])**2
-            )
+            self.edge_length[point1_idx][point3_idx] = self.p2p_length(point1_idx,point3_idx)
             self.edge_length[point3_idx][point1_idx] = self.edge_length[point1_idx][point3_idx]
-            self.edge_length[point2_idx][point3_idx] = math.sqrt(
-                (point2[0]-point3[0])**2+
-                (point2[1]-point3[1])**2+
-                (point2[2]-point3[2])**2
-            )
+            self.edge_length[point2_idx][point3_idx] = self.p2p_length(point2_idx,point3_idx)
             self.edge_length[point3_idx][point2_idx] = self.edge_length[point2_idx][point3_idx]
         return
 
@@ -476,27 +469,9 @@ class TriangleMesh:
     @timer
     def find_connect(self):
         for triangle_idx in range(np.size(self.triangles, axis=0)):
-            if self.connect[self.triangles[triangle_idx, 0],
-                         self.triangles[triangle_idx, 1], 0] != -1:
-                print("yyyy")
-            self.connect[self.triangles[triangle_idx, 0],
-                         self.triangles[triangle_idx, 1], 0] = self.triangles[triangle_idx, 2]
-            self.connect[self.triangles[triangle_idx, 0],
-                         self.triangles[triangle_idx, 1], 1] = triangle_idx
-            if self.connect[self.triangles[triangle_idx, 1],
-                         self.triangles[triangle_idx, 2], 0] != -1:
-                print("yyyy")
-            self.connect[self.triangles[triangle_idx, 1],
-                         self.triangles[triangle_idx, 2], 0] = self.triangles[triangle_idx, 0]
-            self.connect[self.triangles[triangle_idx, 1],
-                         self.triangles[triangle_idx, 2], 1] = triangle_idx
-            if self.connect[self.triangles[triangle_idx, 2],
-                         self.triangles[triangle_idx, 0], 0] != -1:
-                print("yyyy")
-            self.connect[self.triangles[triangle_idx, 2],
-                         self.triangles[triangle_idx, 0], 0] = self.triangles[triangle_idx, 1]
-            self.connect[self.triangles[triangle_idx, 2],
-                         self.triangles[triangle_idx, 0], 1] = triangle_idx
+            self.connect[self.triangles[triangle_idx, 0]][self.triangles[triangle_idx, 1]] = (self.triangles[triangle_idx, 2],triangle_idx)
+            self.connect[self.triangles[triangle_idx, 1]][self.triangles[triangle_idx, 2]] = (self.triangles[triangle_idx, 0],triangle_idx)
+            self.connect[self.triangles[triangle_idx, 2]][self.triangles[triangle_idx, 0]] = (self.triangles[triangle_idx, 1],triangle_idx)
         return
 
     @timer
@@ -572,10 +547,9 @@ class TriangleMesh:
                 
         point1_idx = vertex_idx1
         point2_idx = vertex_idx2
-        point3_idx = self.connect[point1_idx, point2_idx, 0]
+        point3_idx = self.connect[point1_idx][point2_idx][0]
         while True:
-            triangle_middle_idx = self.connect[point1_idx,
-                                               point2_idx, 1]
+            triangle_middle_idx = self.connect[point1_idx][point2_idx][1]
             for i in range(3):
                 if self.triangles[triangle_middle_idx, i] == vertex_idx2:
                     self.triangles[triangle_middle_idx,
@@ -584,11 +558,14 @@ class TriangleMesh:
             if point3_idx == vertex_idx3:
                 break
             point1_idx = point3_idx
-            point3_idx = self.connect[point1_idx, point2_idx, 0]
+            point3_idx = self.connect[point1_idx][point2_idx][0]
         return vertex_add_idx2
 
-    def find_cut_path(self, graph1,start_nodes, end_nodes):
-        graph = dict()
+    def find_cut_path3(self, graph1,start_nodes, end_nodes):
+        """
+        A* algorithm
+        shortest path, but time complexity is high
+        """
         """
         for idx, node in enumerate(graph1):
             tmp = dict()
@@ -606,6 +583,25 @@ class TriangleMesh:
                 if distance < shortest_distance:
                     shortest_distance = distance
                     shortest_path = path
+        return shortest_path
+
+    def find_cut_path4(self, graph1,start_nodes, end_nodes):
+        """
+        A* algorithm
+        not shortest path but somewhat a short path, with acceptable time complexity
+        """
+        shortest_path = []
+        start_node = start_nodes[0]
+        end_node = end_nodes[0]
+        min_distance = float('inf')
+        for s_node in start_nodes:
+            for e_node in end_nodes:
+                distance = self.p2p_length(s_node,e_node)
+                if distance < min_distance:
+                    min_distance = distance
+                    start_node = s_node
+                    end_node = e_node
+        shortest_path, distance = self.AStar(graph1, start_node, end_node)
         return shortest_path
 
     def AStar(self,graph1, start_node, end_node):
@@ -656,15 +652,25 @@ class TriangleMesh:
         return path, graph[end_node].gscore
 
     def find_start_edges(self,surface_group):
+        """
+        find any edge in the surface group
+        """
+        self.start_edges.append([list(surface_group.keys())[0],list(surface_group[list(surface_group.keys())[0]].keys())[0]]) 
+        return
+        '''
         c=0
         for point1_idx in range(self.num_vertices):
             for point2_idx in range(self.num_vertices):
-                if surface_group[point1_idx, point2_idx] != -1 and self.connect[point1_idx,point2_idx,0]!=-1:
+                if(point1_idx==point2_idx or point1_idx not in surface_group.keys() or point2_idx not in surface_group[point1_idx].keys()):
+                    continue
+## here
+                if self.connect[point1_idx,point2_idx,0]!=-1:
                     self.start_edges.append([point1_idx,point2_idx])
                     c =1
                     break
             if c==1: break
         return
+        '''
 
     def plot_graph(self,high_curvature_graph):
         if(self.nograph):
@@ -814,6 +820,10 @@ class TriangleMesh:
         return path, distances[end]  # 返回最短路徑的節點序列和路徑長度
 
     def find_cut_path1(self, graph,start_nodes, end_nodes):
+        """
+        dijkstra
+        shortest path but time complexity is high
+        """
         shortest_distance = float('inf')
         shortest_path = []
         for start_node in start_nodes:
@@ -822,6 +832,26 @@ class TriangleMesh:
                 if distance < shortest_distance:
                     shortest_distance = distance
                     shortest_path = path
+        return shortest_path
+
+    def find_cut_path2(self, graph,start_nodes, end_nodes):
+        """
+        dijkstra
+        not shorstest path but is somewhat short with acceptable time complexity
+        """
+        shortest_path = []
+        start_node = start_nodes[0]
+        end_node = end_nodes[0]
+        min_distance = float('inf')
+        for s_node in start_nodes:
+            for e_node in end_nodes:
+                distance = self.p2p_length(s_node,e_node)
+                if distance < min_distance:
+                    min_distance = distance
+                    start_node = s_node
+                    end_node = e_node
+
+        shortest_path, distance = self.dijkstra(graph, start_node, end_node)
         return shortest_path
 
     '''   
